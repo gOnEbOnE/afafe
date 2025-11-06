@@ -114,7 +114,7 @@ export const useVehicleStore = defineStore('vehicle', () => {
     try {
       // ✅ Ubah dari /update ke /{id}/update
       const response = await axios.put<VehicleResponse>(
-        `${baseVehicleUrl}/${vehicleData.id}/update`, 
+        `${baseVehicleUrl}/${vehicleData.id}/update`,
         vehicleData
       );
 
@@ -145,14 +145,27 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
-      await axios.delete(`${baseVehicleUrl}/${id}`);
-      vehicles.value = vehicles.value.filter(v => v.id !== id);
-      toast.success('Kendaraan berhasil dihapus');
-      return true;
+      const response = await axios.delete<BaseResponseDTO<void>>(
+        `${baseVehicleUrl}/${id}`
+      );
+
+      if (response.status === 200) {
+        // Remove dari local state
+        const index = vehicles.value.findIndex(v => v.id === id);
+        if (index > -1) {
+          vehicles.value.splice(index, 1);
+        }
+
+        if (currentVehicle.value?.id === id) {
+          currentVehicle.value = null;
+        }
+
+        return true;
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Gagal menghapus kendaraan';
-      toast.error(`Error: ${error.value}`);
-      return false;
+      console.error('Delete vehicle error:', err);
+      throw err;
     } finally {
       loading.value = false;
     }

@@ -3,6 +3,7 @@ import { onMounted, ref, computed } from 'vue';
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store';
 import { useRouter } from 'vue-router';
 import { storeToRefs } from 'pinia';
+import VDeleteVehicleButton from '@/components/vehicle/VDeleteVehicleButton.vue';
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
@@ -10,7 +11,6 @@ const { vehicles, loading, vehicleCount } = storeToRefs(vehicleStore);
 
 const searchKeyword = ref('');
 const selectedType = ref('');
-const showModal = ref(false);
 
 const vehicleTypes = ['SUV', 'MPV', 'Luxury', 'Economy', 'Sport'];
 
@@ -51,11 +51,10 @@ const handleReset = async () => {
   await vehicleStore.fetchVehicles();
 };
 
-const handleDelete = async (id: string) => {
-  if (confirm('Apakah Anda yakin ingin menghapus kendaraan ini?')) {
-    await vehicleStore.deleteVehicle(id);
-    await vehicleStore.fetchVehicles();
-  }
+const handleVehicleDeleted = async (vehicleId: string) => {
+  console.log('🗑️ VehicleView: Vehicle deleted:', vehicleId)
+  // Refresh list setelah kendaraan dihapus
+  await vehicleStore.fetchVehicles();
 };
 
 const goToDetail = (id: string) => {
@@ -233,12 +232,12 @@ onMounted(async () => {
                     >
                       Detail
                     </button>
-                    <button
-                      @click="handleDelete(vehicle.id)"
-                      class="px-4 py-1 bg-red-500 text-white rounded font-semibold hover:bg-red-600 transition"
-                    >
-                      Delete
-                    </button>
+                    <!-- ✅ Gunakan VDeleteVehicleButton -->
+                    <VDeleteVehicleButton
+                      :vehicleId="vehicle.id"
+                      :vehicleName="`${vehicle.brand} ${vehicle.model}`"
+                      @deleted="handleVehicleDeleted"
+                    />
                   </div>
                 </td>
               </tr>
