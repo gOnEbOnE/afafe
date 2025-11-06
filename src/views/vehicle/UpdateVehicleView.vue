@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
+import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
 import type { RentalVendor } from '@/interfaces/vendor.interface'
 import { toast } from 'vue-sonner'
 
 const router = useRouter()
 const route = useRoute()
+const vehicleStore = useVehicleStore()
 
 const vehicleId = ref<string>(route.params.id as string)
 const selectedVendor = ref<RentalVendor | null>(null)
@@ -95,11 +97,6 @@ const loadData = async () => {
 }
 
 onMounted(() => {
-  if (!vehicleId.value) {
-    toast.error('Vehicle ID tidak valid')
-    router.push({ name: 'vehicles' })
-    return
-  }
   loadData()
 })
 
@@ -107,6 +104,7 @@ const handleVendorChange = () => {
   if (form.value.rentalVendorId) {
     selectedVendor.value =
       vendors.value.find((v) => v.id === form.value.rentalVendorId) || null
+    // Don't reset location, keep existing one
   }
 }
 
@@ -253,7 +251,7 @@ const handleCancel = () => {
 
         <!-- Form -->
         <form v-else @submit.prevent="handleSubmit" class="space-y-6">
-          <!-- Status -->
+          <!-- Status (New field for update) -->
           <div>
             <label class="block text-sm font-semibold text-green-600 mb-2">
               Status
@@ -283,7 +281,7 @@ const handleCancel = () => {
               class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-600"
               required
             >
-              <option :value="null">-- Select a Vendor --</option>
+              <option value="">-- Select a Vendor --</option>
               <option v-for="vendor in vendors" :key="vendor.id" :value="vendor.id">
                 {{ vendor.name }}
               </option>
@@ -479,6 +477,7 @@ const handleCancel = () => {
 </template>
 
 <style scoped>
+/* Smooth transitions */
 select,
 input {
   transition: all 0.3s ease;
