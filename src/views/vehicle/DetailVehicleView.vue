@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
 
@@ -8,6 +8,11 @@ const router = useRouter()
 const vehicleStore = useVehicleStore()
 
 const vehicleId = route.params.id as string
+
+// Computed property untuk akses data dengan lebih clean
+const currentVehicle = computed(() => vehicleStore.currentVehicle)
+const loading = computed(() => vehicleStore.loading)
+const error = computed(() => vehicleStore.error)
 
 onMounted(async () => {
   await vehicleStore.getVehicleById(vehicleId)
@@ -42,6 +47,8 @@ const getStatusColor = (status: string) => {
   switch (status.toLowerCase()) {
     case 'available':
       return 'bg-green-100 text-green-800'
+    case 'unavailable':
+      return 'bg-red-100 text-red-800'
     case 'rented':
       return 'bg-blue-100 text-blue-800'
     case 'maintenance':
@@ -50,24 +57,34 @@ const getStatusColor = (status: string) => {
       return 'bg-gray-100 text-gray-800'
   }
 }
+
+const getVendorName = () => {
+  if (!currentVehicle.value) return 'N/A'
+  // Cek beberapa kemungkinan struktur data
+  return (
+    currentVehicle.value.rentalVendorName ||
+    currentVehicle.value.rentalVendor?.name ||
+    'N/A'
+  )
+}
 </script>
 
 <template>
   <div class="min-h-screen bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
     <div class="max-w-4xl mx-auto">
       <!-- Header with Title and Action Buttons -->
-      <div class="flex justify-between items-start mb-8">
+      <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
         <h1 class="text-4xl font-bold text-gray-900">Vehicle Details</h1>
-        <div class="flex gap-3">
+        <div class="flex gap-3 w-full md:w-auto">
           <button
             @click="handleUpdate"
-            class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition"
+            class="flex-1 md:flex-none px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition"
           >
             Update Vehicle Details
           </button>
           <button
             @click="handleDelete"
-            class="px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition"
+            class="flex-1 md:flex-none px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition"
           >
             Delete Vehicle
           </button>
@@ -75,7 +92,7 @@ const getStatusColor = (status: string) => {
       </div>
 
       <!-- Loading State -->
-      <div v-if="vehicleStore.loading" class="text-center py-12">
+      <div v-if="loading" class="text-center py-12">
         <div class="inline-block">
           <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
         </div>
@@ -83,108 +100,115 @@ const getStatusColor = (status: string) => {
       </div>
 
       <!-- Error State -->
-      <div v-else-if="vehicleStore.error" class="bg-red-50 border border-red-200 rounded-lg p-6 text-red-800">
+      <div v-else-if="error" class="bg-red-50 border border-red-200 rounded-lg p-6 text-red-800 mb-6">
         <p class="font-semibold">Error:</p>
-        <p>{{ vehicleStore.error }}</p>
+        <p>{{ error }}</p>
       </div>
 
       <!-- Vehicle Details -->
-      <div v-else-if="vehicleStore.currentVehicle" class="bg-white shadow-lg rounded-lg p-8 mb-6">
+      <div v-else-if="currentVehicle" class="bg-white shadow-lg rounded-lg p-8 mb-6">
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
           <!-- Left Column -->
           <div class="space-y-6">
             <!-- Vehicle ID -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Vehicle ID</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.id }}</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.id }}</p>
+            </div>
+
+            <!-- Vendor Name -->
+            <div>
+              <p class="text-sm text-gray-500 font-medium">Rental Vendor</p>
+              <p class="text-lg font-semibold text-gray-900">{{ getVendorName() }}</p>
             </div>
 
             <!-- Vehicle Type -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Vehicle Type</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.type }}</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.type }}</p>
+            </div>
+
+            <!-- Vehicle Brand -->
+            <div>
+              <p class="text-sm text-gray-500 font-medium">Vehicle Brand</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.brand }}</p>
             </div>
 
             <!-- Vehicle Model -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Vehicle Model</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.model }}</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.model }}</p>
             </div>
 
+            <!-- Production Year -->
+            <div>
+              <p class="text-sm text-gray-500 font-medium">Production Year</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.year }}</p>
+            </div>
+          </div>
+
+          <!-- Right Column -->
+          <div class="space-y-6">
             <!-- Location -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Location</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.location }}</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.location }}</p>
+            </div>
+
+            <!-- License Plate -->
+            <div>
+              <p class="text-sm text-gray-500 font-medium">License Plate</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.licensePlate }}</p>
             </div>
 
             <!-- Capacity -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Capacity</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.capacity }} orang</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.capacity }} passengers</p>
+            </div>
+
+            <!-- Transmission -->
+            <div>
+              <p class="text-sm text-gray-500 font-medium">Transmission</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.transmission }}</p>
             </div>
 
             <!-- Fuel Type -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Fuel Type</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.fuelType }}</p>
+              <p class="text-lg font-semibold text-gray-900">{{ currentVehicle.fuelType }}</p>
             </div>
 
             <!-- Status -->
             <div>
               <p class="text-sm text-gray-500 font-medium">Status</p>
               <div class="mt-1">
-                <span :class="['px-3 py-1 rounded-full text-sm font-medium', getStatusColor(vehicleStore.currentVehicle.status)]">
-                  {{ vehicleStore.currentVehicle.status }}
+                <span :class="['px-3 py-1 rounded-full text-sm font-medium', getStatusColor(currentVehicle.status)]">
+                  {{ currentVehicle.status }}
                 </span>
               </div>
             </div>
           </div>
+        </div>
 
-          <!-- Right Column -->
-          <div class="space-y-6">
-            <!-- Vendor Name -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">Vendor Name</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.rentalVendor?.name || 'N/A' }}</p>
-            </div>
-
-            <!-- Vehicle Brand -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">Vehicle Brand</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.brand }}</p>
-            </div>
-
-            <!-- Vehicle Production Year -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">Vehicle Production Year</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.year }}</p>
-            </div>
-
-            <!-- License Plate -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">License Plate</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.licensePlate }}</p>
-            </div>
-
-            <!-- Transmission -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">Transmission</p>
-              <p class="text-lg font-semibold text-gray-900">{{ vehicleStore.currentVehicle.transmission }}</p>
-            </div>
-
-            <!-- Price per Day -->
-            <div>
-              <p class="text-sm text-gray-500 font-medium">Price per Day</p>
-              <p class="text-lg font-semibold text-green-600">{{ formatPrice(vehicleStore.currentVehicle.price) }}</p>
-            </div>
+        <!-- Price Section (Highlight) -->
+        <div class="mt-8 pt-8 border-t border-gray-200">
+          <div class="flex justify-between items-center">
+            <p class="text-gray-600 font-medium">Price per Day:</p>
+            <p class="text-3xl font-bold text-green-600">{{ formatPrice(currentVehicle.price) }}</p>
           </div>
         </div>
+      </div>
+
+      <!-- No Data State -->
+      <div v-else class="bg-gray-100 rounded-lg p-8 text-center">
+        <p class="text-gray-600">No vehicle data available</p>
       </div>
 
       <!-- Back Button -->
       <button
         @click="handleBack"
-        class="w-full py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition"
+        class="w-full py-3 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg transition mt-6"
       >
         Back
       </button>
@@ -193,7 +217,6 @@ const getStatusColor = (status: string) => {
 </template>
 
 <style scoped>
-/* Smooth transitions */
 button {
   transition: all 0.3s ease;
 }

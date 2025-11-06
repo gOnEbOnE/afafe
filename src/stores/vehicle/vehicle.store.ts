@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { Vehicle, VehicleResponse, CreateVehicleRequest } from '@/interfaces/vehicle.interface';
+import type { Vehicle, VehicleResponse, CreateVehicleRequest, UpdateVehicleRequest } from '@/interfaces/vehicle.interface';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -67,7 +67,7 @@ export const useVehicleStore = defineStore('vehicle', () => {
       const response = await axios.get<VehicleResponse>(`${baseVehicleUrl}/${id}`);
 
       if (Array.isArray(response.data.data)) {
-        currentVehicle.value = response.data.data[0];
+        currentVehicle.value = response.data.data[0] || null;
       } else {
         currentVehicle.value = response.data.data as Vehicle;
       }
@@ -93,7 +93,9 @@ export const useVehicleStore = defineStore('vehicle', () => {
         ? response.data.data[0]
         : response.data.data as Vehicle;
 
-      vehicles.value.push(newVehicle);
+      if (newVehicle) {
+        vehicles.value.push(newVehicle);
+      }
       toast.success('Kendaraan berhasil dibuat');
       return newVehicle;
     } catch (err) {
@@ -105,20 +107,27 @@ export const useVehicleStore = defineStore('vehicle', () => {
     }
   };
 
-  const updateVehicle = async (id: string, vehicleData: UpdateVehicleRequest) => {
+  const updateVehicle = async (vehicleData: UpdateVehicleRequest) => {
     loading.value = true;
     error.value = null;
 
     try {
-      const response = await axios.put<VehicleResponse>(`${baseVehicleUrl}/${id}`, vehicleData);
+      // ✅ Ubah dari /update ke /{id}/update
+      const response = await axios.put<VehicleResponse>(
+        `${baseVehicleUrl}/${vehicleData.id}/update`, 
+        vehicleData
+      );
 
       const updatedVehicle = Array.isArray(response.data.data)
         ? response.data.data[0]
-        : response.data.data as Vehicle;
+        : (response.data.data as Vehicle);
 
-      const index = vehicles.value.findIndex(v => v.id === id);
-      if (index !== -1) {
+      const index = vehicles.value.findIndex(v => v.id === vehicleData.id);
+      if (index !== -1 && updatedVehicle) {
         vehicles.value[index] = updatedVehicle;
+      }
+      if (updatedVehicle) {
+        currentVehicle.value = updatedVehicle;
       }
       toast.success('Kendaraan berhasil diperbarui');
       return updatedVehicle;

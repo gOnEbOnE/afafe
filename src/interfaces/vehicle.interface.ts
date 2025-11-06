@@ -11,7 +11,9 @@ export interface Vehicle {
     fuelType: string;
     price: number;
     status: string;
-    rentalVendor: {
+    rentalVendorId?: number;
+    rentalVendorName?: string;
+    rentalVendor?: {
         id: number;
         name: string;
     };
@@ -23,7 +25,7 @@ export interface VehicleResponse {
     status: number;
     message: string;
     timestamp: string;
-    data: Vehicle[];
+    data: Vehicle | Vehicle[];
 }
 
 export interface VehicleCountResponse {
@@ -34,7 +36,7 @@ export interface VehicleCountResponse {
 }
 
 export interface CreateVehicleRequest {
-    id: string;
+    rentalVendorId: number;
     type: string;
     brand: string;
     model: string;
@@ -45,13 +47,12 @@ export interface CreateVehicleRequest {
     transmission: string;
     fuelType: string;
     price: number;
-    status: string;
-    rentalVendor: {
-        id: number;
-    };
 }
 
-// export interface UpdateVehicleRequest extends CreateVehicleRequest {}
+export interface UpdateVehicleRequest extends CreateVehicleRequest {
+    id: string;
+    status: string;
+}
 
 export interface DeleteVehicleRequest {
     id: string;

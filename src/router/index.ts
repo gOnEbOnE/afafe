@@ -14,6 +14,19 @@ const router = createRouter({
       name: 'vehicles',
       component: () => import('../views/vehicle/VehicleView.vue'),
     },
+    // ✅ Static routes HARUS sebelum dynamic routes
+    {
+      path: '/vehicles/create',
+      name: 'create-vehicle',
+      component: () => import('@/views/vehicle/CreateVehicleView.vue'),
+    },
+    {
+      path: '/vehicles/:id/update',
+      name: 'update-vehicle',
+      component: () => import('@/views/vehicle/UpdateVehicleView.vue'),
+      meta: { requiresAuth: true },
+    },
+    // ✅ Dynamic route (catch-all) PALING AKHIR
     {
       path: '/vehicles/:id',
       name: 'vehicle-detail',
@@ -28,11 +41,6 @@ const router = createRouter({
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
-    },
-    {
-      path: '/vehicles/create',
-      name: 'create-vehicle',
-      component: () => import('@/views/vehicle/CreateVehicleView.vue'),
     },
   ],
 })
