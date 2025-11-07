@@ -1,13 +1,19 @@
 <script setup lang="ts">
 import { RouterView } from 'vue-router'
 import VNavbar from './components/layout/VNavbar.vue'
+import { Toaster } from 'vue-sonner'
 </script>
 
 <template>
-  <VNavbar />
-  <main class="min-h-screen bg-gray-50">
-    <RouterView />
-  </main>
+  <div>
+    <!-- ✅ Add Toaster component -->
+    <Toaster />
+
+    <VNavbar />
+    <main class="min-h-screen bg-gray-50">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>

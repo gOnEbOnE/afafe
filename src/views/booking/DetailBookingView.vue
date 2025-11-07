@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useBookingStore } from '@/stores/booking/booking.store'
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
 import type { RentalAddOn } from '@/interfaces/booking.interface'
+import VDeleteBookingButton from '@/components/booking/VDeleteBookingButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,24 +36,10 @@ const handleUpdateStatus = () => {
   router.push({ name: 'update-booking-status', params: { id: bookingId } })
 }
 
-const handleCancelBooking = async () => {
-  if (confirm('Apakah Anda yakin ingin membatalkan booking ini?')) {
-    const updatedBooking = await bookingStore.updateBooking({
-      id: bookingId,
-      vehicleId: currentBooking.value!.vehicleId,
-      pickUpTime: currentBooking.value!.pickUpTime,
-      dropOffTime: currentBooking.value!.dropOffTime,
-      pickUpLocation: currentBooking.value!.pickUpLocation,
-      dropOffLocation: currentBooking.value!.dropOffLocation,
-      capacityNeeded: currentBooking.value!.capacityNeeded,
-      transmissionNeeded: currentBooking.value!.transmissionNeeded,
-      includeDriver: currentBooking.value!.includeDriver,
-      status: 'Cancelled'
-    })
-    if (updatedBooking) {
-      router.push({ name: 'bookings' })
-    }
-  }
+// Handler for when booking is cancelled
+const handleBookingCancelled = () => {
+  console.log('🔄 [FE] Booking cancelled callback from component')
+  // Component handles navigation, so we just log
 }
 
 const handleViewVehicle = () => {
@@ -144,13 +131,13 @@ const canCancelBooking = computed(() => {
           >
             Update Status
           </button>
-          <button
+          <!-- ✅ FIXED: Use @bookingCancelled event instead of @click -->
+          <VDeleteBookingButton
             v-if="canCancelBooking"
-            @click="handleCancelBooking"
-            class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition text-sm md:text-base"
-          >
-            Cancel Booking
-          </button>
+            :bookingId="bookingId"
+            :bookingStatus="currentBooking?.status"
+            @bookingCancelled="handleBookingCancelled"
+          />
         </div>
       </div>
 
