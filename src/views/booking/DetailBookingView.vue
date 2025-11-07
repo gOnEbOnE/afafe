@@ -28,7 +28,7 @@ const handleUpdateBooking = () => {
 }
 
 const handleUpdateAddOns = () => {
-  router.push({ name: 'update-add-ons', params: { id: bookingId } })
+  router.push({ name: 'update-addons', params: { id: bookingId } })
 }
 
 const handleUpdateStatus = () => {
