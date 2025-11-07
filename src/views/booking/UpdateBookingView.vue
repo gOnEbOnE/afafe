@@ -70,6 +70,23 @@ const formatPrice = (price: number) => {
   }).format(price)
 }
 
+// ✅ BARU: SIMPLE - kirim datetime-local as-is seperti CreateBookingView
+const convertToDatetimeLocal = (isoString: string): string => {
+  if (!isoString) return ''
+
+  // Backend kirim: "2025-11-12T09:00:08.912793"
+  // Kita ambil bagian datetime-local saja: "2025-11-12T09:00"
+  return isoString.slice(0, 16)
+}
+
+const convertToISOString = (datetimeLocal: string): string => {
+  // ❌ JANGAN CONVERT!
+  // Kirim apa adanya ke backend
+  // Backend expect: "2025-11-12T09:00"
+  // Frontend kirim: "2025-11-12T09:00"
+  return datetimeLocal
+}
+
 onMounted(async () => {
   await loadProvinces()
   await loadBooking()
@@ -99,18 +116,19 @@ const loadBooking = async () => {
       booking.value = response.data.data
       previousVehicleId.value = booking.value.vehicleId
 
-      // Prefill form dengan data booking
+      // ✅ FIXED: Convert ISO datetime to datetime-local for form
       formPage1.value = {
         transmissionNeeded: booking.value.transmissionNeeded,
         capacityNeeded: booking.value.capacityNeeded,
         pickUpLocation: booking.value.pickUpLocation,
         dropOffLocation: booking.value.dropOffLocation,
-        pickUpTime: new Date(booking.value.pickUpTime).toISOString().slice(0, 16),
-        dropOffTime: new Date(booking.value.dropOffTime).toISOString().slice(0, 16),
+        pickUpTime: convertToDatetimeLocal(booking.value.pickUpTime),
+        dropOffTime: convertToDatetimeLocal(booking.value.dropOffTime),
         includeDriver: booking.value.includeDriver,
       }
 
       console.log('✅ Booking loaded:', booking.value)
+      console.log('✅ Form data after conversion:', formPage1.value)
 
       // ✅ Auto-search dengan data booking saat page load
       await autoSearchWithPreviousVehicle()
@@ -135,15 +153,13 @@ const autoSearchWithPreviousVehicle = async () => {
   hasSearched.value = false
 
   try {
-    const pickUpLocal = new Date(formPage1.value.pickUpTime)
-    const dropOffLocal = new Date(formPage1.value.dropOffTime)
-
+    // ✅ JANGAN CONVERT - kirim datetime-local as-is
     const payload = {
       includeDriver: formPage1.value.includeDriver,
       pickUpLocation: formPage1.value.pickUpLocation,
       dropOffLocation: formPage1.value.dropOffLocation,
-      pickUpTime: pickUpLocal.toISOString(),
-      dropOffTime: dropOffLocal.toISOString(),
+      pickUpTime: formPage1.value.pickUpTime,  // ✅ as-is: "2025-11-12T09:00"
+      dropOffTime: formPage1.value.dropOffTime,  // ✅ as-is: "2025-11-12T09:00"
       capacityNeeded: formPage1.value.capacityNeeded,
       transmissionNeeded: formPage1.value.transmissionNeeded,
     }
@@ -166,7 +182,6 @@ const autoSearchWithPreviousVehicle = async () => {
       availableVehicles.value = response.data.data.availableVehicles || []
       hasSearched.value = true
 
-      // ✅ Set selected vehicle ke yang sebelumnya dipilih
       const previousVehicle = availableVehicles.value.find(v => v.id === previousVehicleId.value)
       if (previousVehicle) {
         selectedVehicle.value = previousVehicle
@@ -244,18 +259,13 @@ const searchVehicles = async () => {
   hasSearched.value = false
 
   try {
-    const pickUpLocal = new Date(formPage1.value.pickUpTime)
-    const dropOffLocal = new Date(formPage1.value.dropOffTime)
-
-    console.log('📅 Pick-up local:', pickUpLocal)
-    console.log('📅 Drop-off local:', dropOffLocal)
-
+    // ✅ JANGAN CONVERT - kirim datetime-local as-is
     const payload = {
       includeDriver: formPage1.value.includeDriver,
       pickUpLocation: formPage1.value.pickUpLocation,
       dropOffLocation: formPage1.value.dropOffLocation,
-      pickUpTime: pickUpLocal.toISOString(),
-      dropOffTime: dropOffLocal.toISOString(),
+      pickUpTime: formPage1.value.pickUpTime,  // ✅ as-is
+      dropOffTime: formPage1.value.dropOffTime,  // ✅ as-is
       capacityNeeded: formPage1.value.capacityNeeded,
       transmissionNeeded: formPage1.value.transmissionNeeded,
     }
@@ -292,7 +302,7 @@ const searchVehicles = async () => {
     }
   } catch (err: any) {
     console.error('❌ [SEARCH] Error:', err)
-    console.error('❌ [SEARCH] Error response:', err.response)
+    console.error('❌ [SEARCH] Error response:', err.response?.data)
 
     if (!err.response) {
       const errMsg = 'Gagal menghubungi server. Periksa koneksi internet Anda.'
@@ -317,12 +327,13 @@ const saveChanges = async () => {
   submitting.value = true
 
   try {
+    // ✅ JANGAN CONVERT - kirim datetime-local as-is
     const payload = {
       id: bookingId,
       pickUpLocation: formPage1.value.pickUpLocation,
       dropOffLocation: formPage1.value.dropOffLocation,
-      pickUpTime: new Date(formPage1.value.pickUpTime).toISOString(),
-      dropOffTime: new Date(formPage1.value.dropOffTime).toISOString(),
+      pickUpTime: formPage1.value.pickUpTime,  // ✅ as-is
+      dropOffTime: formPage1.value.dropOffTime,  // ✅ as-is
       capacityNeeded: formPage1.value.capacityNeeded,
       transmissionNeeded: formPage1.value.transmissionNeeded,
       includeDriver: formPage1.value.includeDriver,

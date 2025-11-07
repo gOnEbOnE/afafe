@@ -107,6 +107,10 @@ const goToCreate = () => {
   router.push({ name: 'create-booking' });
 };
 
+const goToChart = () => {
+  router.push({ name: 'booking-chart' });
+};
+
 const getBookingCount = async () => {
   await bookingStore.getBookingCount();
 };
@@ -188,6 +192,12 @@ onMounted(async () => {
           class="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-semibold"
         >
           📊
+        </button>
+        <button
+          @click="goToChart"
+          class="px-4 py-2 bg-purple-600 text-white rounded hover:bg-purple-700 transition font-semibold"
+        >
+          📊 Statistics
         </button>
       </div>
 
