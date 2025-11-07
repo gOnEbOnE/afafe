@@ -36,11 +36,11 @@ const router = createRouter({
       name: 'bookings',
       component: () => import('../views/booking/BookingView.vue'),
     },
-    // {
-    //   path: '/bookings/create',
-    //   name: 'create-booking',
-    //   component: () => import('../views/booking/CreateBookingView.vue'),
-    // },
+    {
+      path: '/bookings/create',
+      name: 'create-booking',
+      component: () => import('../views/booking/CreateBookingView.vue'),
+    },
     {
       path: '/bookings/:id',
       name: 'booking-detail',
