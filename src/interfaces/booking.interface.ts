@@ -43,7 +43,13 @@ export interface CreateBookingRequest {
   includeDriver: boolean;
 }
 
-export interface UpdateBookingRequest extends CreateBookingRequest {
+export interface UpdateBookingRequest {
   id: string;
-  status: string;
+  pickUpLocation: string;
+  dropOffLocation: string;
+  pickUpTime: string;
+  dropOffTime: string;
+  capacityNeeded: number;
+  transmissionNeeded: string;
+  includeDriver: boolean;
 }

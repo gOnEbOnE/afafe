@@ -47,6 +47,18 @@ const router = createRouter({
       component: () => import('../views/booking/DetailBookingView.vue'),
     },
     {
+      path: '/bookings/:id/update-details',
+      name: 'update-booking',
+      component: () => import('@/views/booking/UpdateBookingView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
+      path: '/bookings/:id/update-addons',
+      name: 'update-addons',
+      component: () => import('@/views/booking/UpdateAddOnsView.vue'),
+      meta: { requiresAuth: true }
+    },
+    {
       path: '/about',
       name: 'about',
       component: () => import('../views/AboutView.vue'),
