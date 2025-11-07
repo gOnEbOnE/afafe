@@ -159,11 +159,17 @@ const validatePage1 = (): boolean => {
   const dropOff = new Date(formPage1.value.dropOffTime)
   const now = new Date()
 
-  // Add 5 minutes tolerance for timezone issues
-  const minAllowedTime = new Date(now.getTime() - 5 * 60000)
+  console.log('🕐 [FE] Time validation:')
+  console.log('   Device time:', now.toLocaleString())
+  console.log('   Pick-up time:', pickUp.toLocaleString())
+  console.log('   Difference (ms):', pickUp.getTime() - now.getTime())
+
+  // ✅ INCREASED tolerance to 10 minutes
+  const minAllowedTime = new Date(now.getTime() - 10 * 60000)
 
   if (pickUp < minAllowedTime) {
-    toast.error('Waktu pengambilan tidak boleh lebih dari 5 menit di masa lalu')
+    console.log('❌ Pick-up time is too far in past')
+    toast.error('Pick-up time tidak boleh lebih dari 10 menit di masa lalu')
     return false
   }
 
@@ -193,20 +199,26 @@ const searchVehicles = async () => {
   hasSearched.value = false
 
   try {
-    const pickUpLocal = new Date(formPage1.value.pickUpTime)
-    const dropOffLocal = new Date(formPage1.value.dropOffTime)
+    // ✅ FIXED: Send as datetime-local format (NOT ISO with Z)
+    // datetime-local value is already: "2025-11-07T17:00"
+    // This is local time, so send it as-is
+    const pickUpLocal = formPage1.value.pickUpTime  // Already "2025-11-07T17:00"
+    const dropOffLocal = formPage1.value.dropOffTime  // Already "2025-11-07T17:03"
 
     const payload = {
       includeDriver: formPage1.value.includeDriver,
       pickUpLocation: formPage1.value.pickUpLocation,
       dropOffLocation: formPage1.value.dropOffLocation,
-      pickUpTime: pickUpLocal.toISOString(),
-      dropOffTime: dropOffLocal.toISOString(),
+      pickUpTime: pickUpLocal,  // ✅ Send as local time string
+      dropOffTime: dropOffLocal,  // ✅ Send as local time string
       capacityNeeded: formPage1.value.capacityNeeded,
       transmissionNeeded: formPage1.value.transmissionNeeded,
     }
 
-    console.log('📤 Sending search payload:', payload)
+    console.log('📤 [FE] Sending search payload with times:')
+    console.log('   Pick-up (local string):', pickUpLocal)
+    console.log('   Drop-off (local string):', dropOffLocal)
+    console.log('   Current time:', new Date().toLocaleString('id-ID'))
 
     const response = await axios.post(
       'http://localhost:8080/api/bookings/search',
@@ -238,7 +250,6 @@ const searchVehicles = async () => {
   } catch (err: any) {
     console.error('❌ Search error:', err)
 
-    // Handle network errors
     if (!err.response) {
       const errMsg = 'Gagal menghubungi server. Periksa koneksi internet Anda.'
       error.value = errMsg
@@ -246,7 +257,6 @@ const searchVehicles = async () => {
       return
     }
 
-    // Handle server errors
     const errMsg = err.response?.data?.message ||
                    err.response?.statusText ||
                    'Gagal mencari kendaraan'
@@ -301,8 +311,8 @@ const saveBooking = async () => {
         includeDriver: formPage1.value.includeDriver,
         pickUpLocation: formPage1.value.pickUpLocation,
         dropOffLocation: formPage1.value.dropOffLocation,
-        pickUpTime: new Date(formPage1.value.pickUpTime).toISOString(),
-        dropOffTime: new Date(formPage1.value.dropOffTime).toISOString(),
+        pickUpTime: formPage1.value.pickUpTime,  // ✅ Send as local time string
+        dropOffTime: formPage1.value.dropOffTime,  // ✅ Send as local time string
         capacityNeeded: formPage1.value.capacityNeeded,
         transmissionNeeded: formPage1.value.transmissionNeeded,
       },
@@ -335,14 +345,12 @@ const saveBooking = async () => {
   } catch (err: any) {
     console.error('❌ Finalize error:', err)
 
-    // Handle network errors
     if (!err.response) {
       const errMsg = 'Gagal menghubungi server. Periksa koneksi internet Anda.'
       toast.error(errMsg)
       return
     }
 
-    // Handle server errors
     const errMsg = err.response?.data?.message ||
                    err.response?.statusText ||
                    'Gagal menyimpan booking'
