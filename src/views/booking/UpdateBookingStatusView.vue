@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import type { RentalBooking } from '@/interfaces/booking.interface'
 import { toast } from 'vue-sonner'
@@ -14,6 +14,16 @@ const availableStatuses = ref<string[]>([])
 const selectedNewStatus = ref<string>('')
 const loading = ref(false)
 const submitting = ref(false)
+
+// ✅ NEW: Server time variables
+const serverTime = ref<number | null>(null)
+const timeDifference = ref<number>(0) // milliseconds
+const currentTime = ref<number>(Date.now())
+
+// ✅ NEW: Update current time setiap detik
+setInterval(() => {
+  currentTime.value = Date.now()
+}, 1000)
 
 const statusColors = {
   'Upcoming': 'text-blue-600',
@@ -54,23 +64,33 @@ const formatDateTime = (dateTime: string) => {
   })
 }
 
+// ✅ UPDATED: Use server time for penalty calculation
 const isPenaltyApplicable = computed(() => {
-  if (!booking.value) return false
-  const now = new Date()
-  const dropOffTime = new Date(booking.value.dropOffTime)
+  if (!booking.value || serverTime.value === null) return false
+  const now = serverTime.value + timeDifference.value
+  const dropOffTime = new Date(booking.value.dropOffTime).getTime()
   return now > dropOffTime && booking.value.status === 'Ongoing'
 })
 
+// ✅ UPDATED: Use server time for penalty calculation
 const estimatedPenalty = computed(() => {
-  if (!booking.value || !isPenaltyApplicable.value) return 0
+  if (!booking.value || !isPenaltyApplicable.value || serverTime.value === null) return 0
 
-  const now = new Date()
-  const dropOffTime = new Date(booking.value.dropOffTime)
-  const minutesLate = Math.floor((now.getTime() - dropOffTime.getTime()) / (1000 * 60))
-  const hoursLate = Math.ceil(minutesLate / 60)
+  const now = serverTime.value + timeDifference.value
+  const dropOffTime = new Date(booking.value.dropOffTime).getTime()
+  
+  // Calculate milliseconds late
+  const millisecondsLate = now - dropOffTime
+  
+  // Convert to hours with ceiling
+  const secondsLate = Math.floor(millisecondsLate / 1000)
+  const hoursLate = Math.ceil(secondsLate / 3600)
 
-  console.log('💰 Penalty Calculation:')
-  console.log('   Minutes late:', minutesLate)
+  console.log('💰 Penalty Calculation (Server Time):')
+  console.log('   Current server time: ' + new Date(now).toLocaleTimeString('id-ID'))
+  console.log('   Drop-off time: ' + new Date(dropOffTime).toLocaleTimeString('id-ID'))
+  console.log('   Milliseconds late:', millisecondsLate)
+  console.log('   Seconds late:', secondsLate)
   console.log('   Hours late (rounded up):', hoursLate)
   console.log('   Penalty per hour: 20000')
   console.log('   Total penalty:', hoursLate * 20000)
@@ -96,9 +116,37 @@ onMounted(async () => {
   console.log('   Booking ID:', bookingId)
   console.log('════════════════════════════════════════════════════')
 
+  // ✅ NEW: Get server time first
+  await fetchServerTime()
   await loadBooking()
   await loadAvailableStatuses()
 })
+
+// ✅ NEW: Fetch server time and calculate time difference
+const fetchServerTime = async () => {
+  console.log('🔍 [FE] fetchServerTime called')
+  try {
+    const response = await axios.get('http://localhost:8080/api/bookings/current-time')
+    
+    if (response.data.status === 200) {
+      const serverTimeValue = response.data.data.timestamp
+      const clientTime = Date.now()
+      
+      serverTime.value = serverTimeValue
+      timeDifference.value = serverTimeValue - clientTime
+      
+      console.log('✅ Server time synchronized')
+      console.log('   Server time: ' + new Date(serverTimeValue).toLocaleTimeString('id-ID'))
+      console.log('   Client time: ' + new Date(clientTime).toLocaleTimeString('id-ID'))
+      console.log('   Time difference: ' + timeDifference.value + 'ms')
+    }
+  } catch (err: any) {
+    console.error('❌ Error fetching server time:', err)
+    // Fallback: gunakan client time
+    serverTime.value = Date.now()
+    timeDifference.value = 0
+  }
+}
 
 const loadBooking = async () => {
   console.log('🔍 [FE] loadBooking called')
