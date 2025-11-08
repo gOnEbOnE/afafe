@@ -169,7 +169,7 @@ const validatePage1 = (): boolean => {
 
   if (pickUp < minAllowedTime) {
     console.log('❌ Pick-up time is too far in past')
-    toast.error('Pick-up time tidak boleh lebih dari 10 menit di masa lalu')
+    toast.error('Pick-up time paling cepat adalah sekarang')
     return false
   }
 
