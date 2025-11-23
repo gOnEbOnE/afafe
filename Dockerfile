@@ -42,3 +42,4 @@ HEALTHCHECK CMD wget -qO- http://localhost:80 || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
+
