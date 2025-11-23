@@ -24,8 +24,8 @@ docker-build-push:
         sudo docker push $DOCKER_IMAGE_NAME:$IMAGE_TAG
       "
   only:
-    - main
-    - develop
+    - feat/praktikum-9
+
 
 deploy:
   stage: deploy
@@ -53,5 +53,4 @@ deploy:
         sudo docker container prune -f
       "
   only:
-    - main
-    - develop
+    - feat/praktikum-9
