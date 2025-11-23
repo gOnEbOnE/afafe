@@ -3,7 +3,7 @@ stages:
   - deploy
 
 variables:
-  DOCKER_IMAGE_NAME: christophermatthew31/vehiclerental-2306245592-fe
+  DOCKER_IMAGE_NAME: christophermatthew31/vehiclerental-fe-2306245592
   IMAGE_TAG: $CI_COMMIT_SHORT_SHA
 
 docker-build-push:
