@@ -19,11 +19,11 @@ spec:
           ports:
             - containerPort: 80
           env:
-            - name: VITE_API_BASE_URL
+            - name: VITE_API_URL
               valueFrom:
                 configMapKeyRef:
                   name: vehicle-rental-2306245592-fe-config
-                  key: API_BASE_URL
+                  key: VITE_API_URL
             - name: NODE_ENV
               valueFrom:
                 configMapKeyRef:

@@ -19,7 +19,7 @@ docker-build-push:
     - rsync -avz --delete --exclude=node_modules --exclude=.git . $EC2_USER@$EC2_HOST:~/app/vehicle-rental-2306245592-fe/
     - ssh $EC2_USER@$EC2_HOST "
         cd ~/app/vehicle-rental-2306245592-fe &&
-        sudo docker build --build-arg VITE_API_BASE_URL=$VITE_API_BASE_URL -t $DOCKER_IMAGE_NAME:$IMAGE_TAG . &&
+        sudo docker build --build-arg VITE_API_URL=$VITE_API_URL -t $DOCKER_IMAGE_NAME:$IMAGE_TAG . &&
         echo '$DOCKER_PASSWORD' | sudo docker login -u '$DOCKER_USERNAME' --password-stdin &&
         sudo docker push $DOCKER_IMAGE_NAME:$IMAGE_TAG
       "
@@ -39,8 +39,8 @@ deploy:
   script:
     - echo "Generating Kubernetes ConfigMap for Frontend..."
     - |
-      printf "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: vehicle-rental-2306245592-fe-config\n  namespace: default\ndata:\n  API_BASE_URL: \"%s\"\n  NODE_ENV: \"%s\"\n" \
-      "$VITE_API_BASE_URL" "$NODE_ENV" > configmap.yaml
+      printf "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: vehicle-rental-2306245592-fe-config\n  namespace: default\ndata:\n  VITE_API_URL: \"%s\"\n  NODE_ENV: \"%s\"\n" \
+      "$VITE_API_URL" "$NODE_ENV" > configmap.yaml
     - sed "s|REPLACE_ME_TAG|$IMAGE_TAG|g" k8s/deployment.yaml > deployment.yaml
     - echo "Deploying -> deployment.yaml, configmap.yaml, service.yaml, ingress.yaml"
     - ssh $EC2_USER@$EC2_HOST "mkdir -p ~/app/vehicle-rental-2306245592-fe/k8s"

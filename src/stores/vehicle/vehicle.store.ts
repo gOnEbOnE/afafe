@@ -4,7 +4,7 @@ import type { Vehicle, VehicleResponse, CreateVehicleRequest, UpdateVehicleReque
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
-const baseVehicleUrl = 'http://localhost:8080/api/vehicles';
+const baseVehicleUrl = `${import.meta.env.VITE_API_URL}/vehicles`;
 
 export const useVehicleStore = defineStore('vehicle', () => {
   const vehicles = ref<Vehicle[]>([]);

@@ -16,11 +16,13 @@ export const useStatisticsStore = defineStore('statistics', () => {
     loading.value = true;
     error.value = null;
 
+    const apiUrl = import.meta.env.VITE_API_URL;
+
     try {
       const [vehicleRes, vendorRes, bookingRes] = await Promise.all([
-        fetch('http://localhost:8080/api/vehicles/count'),
-        fetch('http://localhost:8080/api/vehicles/vendor/count'),
-        fetch('http://localhost:8080/api/bookings/count'),
+        fetch(`${apiUrl}/vehicles/count`),
+        fetch(`${apiUrl}/vehicles/vendor/count`),
+        fetch(`${apiUrl}/bookings/count`),
       ]);
 
       const vehicleData: StatisticsResponse = await vehicleRes.json();

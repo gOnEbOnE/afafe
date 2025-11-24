@@ -13,11 +13,11 @@ RUN npm ci
 COPY . .
 
 # Build arguments for environment variables
-ARG VITE_API_BASE_URL
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ARG VITE_API_URL
+ENV VITE_API_URL=$VITE_API_URL
 
 # Create .env.production file with build-time variables
-RUN echo "VITE_API_BASE_URL=$VITE_API_BASE_URL" > .env.production
+RUN echo "VITE_API_URL=$VITE_API_URL" > .env.production
 
 # Build the application
 RUN npm run build-only
