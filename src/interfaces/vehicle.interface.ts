@@ -19,6 +19,7 @@ export interface Vehicle {
 }
 
 export interface CreateVehicleRequest {
+  rentalVendorId: string;
   type: string;
   brand: string;
   model: string;
@@ -57,12 +58,14 @@ export interface BaseResponseDTO<T> {
 }
 
 export interface RentalVendor {
-  id: string;
-  userId: string;
+  id: number;
+  userId?: string;
   name: string;
-  address: string;
+  address?: string;
   phone: string;
   email: string;
+  listOfLocations: string[];
+  listOfVehicles?: Vehicle[];
   createdAt?: string;
   updatedAt?: string;
 }

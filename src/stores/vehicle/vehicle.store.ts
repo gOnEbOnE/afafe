@@ -178,19 +178,25 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
+      console.log('[Store] fetchVendors - starting...');
       const response = await api.get(`${baseVehicleUrl}/vendors`);
+      console.log('[Store] fetchVendors - API response:', response.data);
 
       if (Array.isArray(response.data.data)) {
         vendors.value = response.data.data as RentalVendor[];
+        console.log('[Store] fetchVendors - loaded', vendors.value.length, 'vendors');
       } else if (response.data.data) {
         vendors.value = [response.data.data as RentalVendor];
+        console.log('[Store] fetchVendors - loaded 1 vendor (single object)');
       } else {
         vendors.value = [];
+        console.log('[Store] fetchVendors - no data');
       }
 
       return vendors.value;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Gagal memuat vendor';
+      console.error('[Store] fetchVendors - error:', err);
       toast.error(`Error: ${error.value}`);
       vendors.value = [];
       return [];

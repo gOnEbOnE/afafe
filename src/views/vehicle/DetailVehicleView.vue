@@ -2,10 +2,13 @@
 import { onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
+import { useAuthStore } from '@/stores/auth/auth.store'
+import VDeleteVehicleButton from '@/components/vehicle/VDeleteVehicleButton.vue'
 
 const route = useRoute()
 const router = useRouter()
 const vehicleStore = useVehicleStore()
+const authStore = useAuthStore()
 
 const vehicleId = route.params.id as string
 
@@ -13,6 +16,44 @@ const vehicleId = route.params.id as string
 const currentVehicle = computed(() => vehicleStore.currentVehicle)
 const loading = computed(() => vehicleStore.loading)
 const error = computed(() => vehicleStore.error)
+
+// ✅ Helper: Get local vendor ID by matching email (same as VehicleView)
+const localVendorId = computed(() => {
+  if (authStore.user?.role !== 'RentalVendor' || !authStore.user?.email) {
+    return null
+  }
+
+  const userEmail = authStore.user.email
+  const matchingVendor = vehicleStore.vendors.find(
+    (vendor) => vendor.email === userEmail
+  )
+
+  return matchingVendor?.id || null
+})
+
+// ✅ RBAC: Check if user can edit/delete this vehicle - using localVendorId with type conversion
+const canModifyVehicle = computed(() => {
+  if (!authStore.user || !currentVehicle.value) return false
+
+  const userRole = authStore.user.role
+
+  // Superadmin can modify all vehicles
+  if (userRole === 'Superadmin') return true
+
+  // Rental Vendor can only modify their own vehicles
+  if (userRole === 'RentalVendor') {
+    if (localVendorId.value === null) {
+      return false
+    }
+    // Convert rentalVendorId to number for comparison
+    const vehicleVendorId = typeof currentVehicle.value.rentalVendorId === 'string'
+      ? parseInt(currentVehicle.value.rentalVendorId)
+      : currentVehicle.value.rentalVendorId
+    return vehicleVendorId === localVendorId.value
+  }
+
+  return false
+})
 
 onMounted(async () => {
   await vehicleStore.fetchVehicleById(vehicleId)
@@ -22,13 +63,8 @@ const handleUpdate = () => {
   router.push({ name: 'update-vehicle', params: { id: vehicleId } })
 }
 
-const handleDelete = async () => {
-  if (confirm('Apakah Anda yakin ingin menghapus kendaraan ini?')) {
-    const success = await vehicleStore.deleteVehicle(vehicleId)
-    if (success) {
-      router.push({ name: 'vehicles' })
-    }
-  }
+const handleDeleteSuccess = () => {
+  router.push({ name: 'vehicles' })
 }
 
 const handleBack = () => {
@@ -60,12 +96,8 @@ const getStatusColor = (status: string) => {
 
 const getVendorName = () => {
   if (!currentVehicle.value) return 'N/A'
-  // Cek beberapa kemungkinan struktur data
-  return (
-    currentVehicle.value.rentalVendorName ||
-    currentVehicle.value.rentalVendor?.name ||
-    'N/A'
-  )
+  // Vehicle interface already has rentalVendorName property
+  return currentVehicle.value.rentalVendorName || 'N/A'
 }
 </script>
 
@@ -75,19 +107,21 @@ const getVendorName = () => {
       <!-- Header with Title and Action Buttons -->
       <div class="flex flex-col md:flex-row justify-between items-start mb-8 gap-4">
         <h1 class="text-4xl font-bold text-gray-900">Vehicle Details</h1>
-        <div class="flex gap-3 w-full md:w-auto">
+
+        <!-- ✅ Action Buttons - Only show if user can modify this vehicle -->
+        <div v-if="canModifyVehicle" class="flex gap-3 w-full md:w-auto">
           <button
             @click="handleUpdate"
             class="flex-1 md:flex-none px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition"
           >
             Update Vehicle Details
           </button>
-          <button
-            @click="handleDelete"
-            class="flex-1 md:flex-none px-6 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg transition"
-          >
-            Delete Vehicle
-          </button>
+          <VDeleteVehicleButton
+            :vehicle-id="vehicleId"
+            :vehicle-name="currentVehicle ? `${currentVehicle.brand} ${currentVehicle.model}` : 'Kendaraan'"
+            @deleted="handleDeleteSuccess"
+            class="flex-1 md:flex-none"
+          />
         </div>
       </div>
 

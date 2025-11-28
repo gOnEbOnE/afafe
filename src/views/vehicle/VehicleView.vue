@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router';
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store';
 import { useAuthStore } from '@/stores/auth/auth.store';
 import type { Vehicle } from '@/interfaces/vehicle.interface';
-import { toast } from 'vue-sonner';
 
 const router = useRouter();
 const vehicleStore = useVehicleStore();
@@ -31,33 +30,104 @@ const canDelete = computed(() => {
   return userRole === 'Superadmin' || userRole === 'RentalVendor';
 });
 
+// ✅ NEW: Helper computed property - Get local vendor ID by matching email
+const localVendorId = computed(() => {
+  console.log('🔍 localVendorId computed - checking...');
+  console.log('   authStore.user:', authStore.user);
+  console.log('   authStore.user?.email:', authStore.user?.email);
+  console.log('   vehicleStore.vendors count:', vehicleStore.vendors?.length);
+
+  if (authStore.user?.role !== 'RentalVendor' || !authStore.user?.email) {
+    console.log('   ❌ User is not RentalVendor or email missing');
+    return null;
+  }
+
+  const userEmail = authStore.user.email;
+  console.log('   🔎 Searching vendor with email:', userEmail);
+  console.log('   📋 Available vendors:');
+
+  vehicleStore.vendors.forEach((v, idx) => {
+    console.log(`       [${idx}] ID: ${v.id}, Email: ${v.email}, Match: ${v.email === userEmail}`);
+  });
+
+  const matchingVendor = vehicleStore.vendors.find(
+    (vendor) => vendor.email === userEmail
+  );
+
+  if (matchingVendor) {
+    console.log('   ✅ Found matching vendor:', matchingVendor);
+    console.log('   📦 Local Vendor ID:', matchingVendor.id, '(Type:', typeof matchingVendor.id, ')');
+  } else {
+    console.log('   ❌ No matching vendor found');
+    console.log('   💡 Hint: Check if email matches exactly (case-sensitive)');
+  }
+
+  return matchingVendor?.id || null;
+});
+
 // ✅ ENHANCED: Client-side filtering dengan Search, Filter Type, dan Sorting
 const filteredVehicles = computed(() => {
+  console.log('📊 filteredVehicles computed - recalculating...');
   const userRole = authStore.user?.role || '';
-  const userId = authStore.user?.id || '';
+  console.log('   User Role:', userRole);
+  console.log('   Local Vendor ID:', localVendorId.value);
 
   // STEP 1: Filter berdasarkan RBAC
   let result = vehicleStore.vehicles;
+  console.log('   Total vehicles from store:', result.length);
 
   // Superadmin bisa lihat semua kendaraan
   if (userRole === 'Superadmin') {
+    console.log('   ✅ Superadmin - showing all vehicles');
     result = vehicleStore.vehicles;
   }
   // Rental Vendor HANYA lihat kendaraan miliknya sendiri
+  // ✅ FIX: Match by email untuk mendapatkan local vendor ID
   else if (userRole === 'RentalVendor') {
-    result = vehicleStore.vehicles.filter(vehicle => {
-      return vehicle.rentalVendorId === userId;
-    });
+    console.log('   🏪 RentalVendor - filtering by vendor ID...');
+    if (localVendorId.value !== null) {
+      const vendorIdNumber = localVendorId.value; // This is a number
+      console.log('   🔍 Filtering vehicles with rentalVendorId:', vendorIdNumber, '(Type: number)');
+      console.log('   📊 Vehicles to filter:', vehicleStore.vehicles.map(v => ({
+        id: v.id,
+        rentalVendorId: v.rentalVendorId,
+        rentalVendorIdType: typeof v.rentalVendorId
+      })));
+
+      result = vehicleStore.vehicles.filter((vehicle) => {
+        // ✅ FIX: Convert rentalVendorId to number for comparison
+        const vehicleVendorId = typeof vehicle.rentalVendorId === 'string'
+          ? parseInt(vehicle.rentalVendorId)
+          : vehicle.rentalVendorId;
+
+        const matches = vehicleVendorId === vendorIdNumber;
+        if (matches) {
+          console.log('   ✅ Match found - Vehicle ID:', vehicle.id, 'rentalVendorId:', vehicle.rentalVendorId, 'converted:', vehicleVendorId);
+        } else {
+          console.log(`   ❌ No match - Vehicle ID: ${vehicle.id}, looking for: ${vendorIdNumber}, got: ${vehicleVendorId} (type: ${typeof vehicleVendorId})`);
+        }
+        return matches;
+      });
+      console.log('   📦 Filtered vehicles count:', result.length);
+    } else {
+      // Jika vendor tidak ditemukan, tampilkan list kosong
+      console.log('   ❌ Vendor ID not found - showing empty list');
+      result = [];
+    }
   }
   // Customer atau role lain: lihat semua kendaraan yang tersedia
   else {
+    console.log('   👤 Customer/Other role - showing all vehicles');
     result = vehicleStore.vehicles;
   }
 
   // STEP 2: Filter berdasarkan Search Query (semua kolom)
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase();
-    result = result.filter(vehicle => {
+    console.log('   🔎 Applying search filter:', query);
+    const beforeSearch = result.length;
+
+    result = result.filter((vehicle) => {
       const brand = vehicle.brand?.toLowerCase() || '';
       const model = vehicle.model?.toLowerCase() || '';
       const vendorName = vehicle.rentalVendorName?.toLowerCase() || '';
@@ -69,47 +139,88 @@ const filteredVehicles = computed(() => {
       const location = vehicle.location?.toLowerCase() || '';
       const status = vehicle.status?.toLowerCase() || '';
 
-      return brand.includes(query) ||
-             model.includes(query) ||
-             vendorName.includes(query) ||
-             type.includes(query) ||
-             year.includes(query) ||
-             licensePlate.includes(query) ||
-             transmission.includes(query) ||
-             fuelType.includes(query) ||
-             location.includes(query) ||
-             status.includes(query);
+      return (
+        brand.includes(query) ||
+        model.includes(query) ||
+        vendorName.includes(query) ||
+        type.includes(query) ||
+        year.includes(query) ||
+        licensePlate.includes(query) ||
+        transmission.includes(query) ||
+        fuelType.includes(query) ||
+        location.includes(query) ||
+        status.includes(query)
+      );
     });
+    console.log(`   Search filter: ${beforeSearch} → ${result.length} vehicles`);
   }
 
   // STEP 3: Filter berdasarkan Type
   if (selectedType.value && selectedType.value !== '') {
-    result = result.filter(vehicle => {
+    console.log('   🚗 Applying type filter:', selectedType.value);
+    const beforeType = result.length;
+
+    result = result.filter((vehicle) => {
       return vehicle.type === selectedType.value;
     });
+    console.log(`   Type filter: ${beforeType} → ${result.length} vehicles`);
   }
 
   // STEP 4: Sorting berdasarkan pilihan
   if (sortOption.value === 'price_asc') {
+    console.log('   📊 Sorting by price ascending');
     result = [...result].sort((a, b) => a.price - b.price);
   } else if (sortOption.value === 'price_desc') {
+    console.log('   📊 Sorting by price descending');
     result = [...result].sort((a, b) => b.price - a.price);
   } else if (sortOption.value === 'capacity_asc') {
+    console.log('   📊 Sorting by capacity ascending');
     result = [...result].sort((a, b) => a.capacity - b.capacity);
   } else if (sortOption.value === 'capacity_desc') {
+    console.log('   📊 Sorting by capacity descending');
     result = [...result].sort((a, b) => b.capacity - a.capacity);
   } else if (sortOption.value === 'id_asc') {
+    console.log('   📊 Sorting by ID ascending');
     result = [...result].sort((a, b) => a.id.localeCompare(b.id));
   } else if (sortOption.value === 'id_desc') {
+    console.log('   📊 Sorting by ID descending');
     result = [...result].sort((a, b) => b.id.localeCompare(a.id));
   }
 
+  console.log('✅ Final filtered vehicles count:', result.length);
   return result;
 });
 
 // Lifecycle
-onMounted(() => {
-  vehicleStore.fetchVehicles();
+onMounted(async () => {
+  console.log('🚀 VehicleView mounted');
+  console.log('📝 Current user:', authStore.user);
+
+  try {
+    console.log('⏳ Fetching vendors...');
+    await vehicleStore.fetchVendors();
+    console.log('✅ Vendors loaded:', vehicleStore.vendors);
+    console.log('   Vendors count:', vehicleStore.vendors.length);
+    console.log('   Full list:');
+    vehicleStore.vendors.forEach((v, idx) => {
+      const isMatch = v.email === authStore.user?.email ? ' ✅ MATCH!' : '';
+      console.log(`   [${idx}] ID: ${v.id}, Email: ${v.email}, Name: ${v.name}${isMatch}`);
+    });
+  } catch (err) {
+    console.error('❌ Error fetching vendors:', err);
+  }
+
+  try {
+    console.log('⏳ Fetching vehicles...');
+    await vehicleStore.fetchVehicles();
+    console.log('✅ Vehicles loaded:', vehicleStore.vehicles);
+    console.log('   Vehicles count:', vehicleStore.vehicles.length);
+    vehicleStore.vehicles.slice(0, 3).forEach((v, idx) => {
+      console.log(`   [${idx}] ID: ${v.id}, rentalVendorId: ${v.rentalVendorId}, Brand: ${v.brand}`);
+    });
+  } catch (err) {
+    console.error('❌ Error fetching vehicles:', err);
+  }
 });
 
 // Methods
@@ -138,39 +249,73 @@ const goToUpdate = (id: string) => {
   router.push(`/vehicles/${id}/update`);
 };
 
-// ✅ FIX: Check ownership sebelum delete
+// ✅ FIX: Check ownership sebelum delete - using localVendorId instead of userId
 const canDeleteVehicle = (vehicle: Vehicle): boolean => {
   const userRole = authStore.user?.role || '';
-  const userId = authStore.user?.id || '';
+  console.log('🗑️ canDeleteVehicle check:', {
+    userRole,
+    localVendorId: localVendorId.value,
+    vehicleId: vehicle.id,
+    rentalVendorId: vehicle.rentalVendorId
+  });
 
   // Superadmin bisa hapus semua kendaraan
   if (userRole === 'Superadmin') {
+    console.log('   ✅ Superadmin can delete');
     return true;
   }
 
   // Rental Vendor hanya bisa hapus kendaraan miliknya sendiri
   if (userRole === 'RentalVendor') {
-    return vehicle.rentalVendorId === userId;
+    if (localVendorId.value === null) {
+      console.log('   ❌ Vendor ID not found');
+      return false;
+    }
+    // Convert rentalVendorId to number for comparison
+    const vehicleVendorId = typeof vehicle.rentalVendorId === 'string'
+      ? parseInt(vehicle.rentalVendorId)
+      : vehicle.rentalVendorId;
+    const canDelete = vehicleVendorId === localVendorId.value;
+    console.log(`   ${canDelete ? '✅' : '❌'} RentalVendor delete check: ${vehicleVendorId} === ${localVendorId.value}`);
+    return canDelete;
   }
 
+  console.log('   ❌ User cannot delete');
   return false;
 };
 
-// ✅ FIX: Check ownership sebelum edit
+// ✅ FIX: Check ownership sebelum edit - using localVendorId instead of userId
 const canEditVehicle = (vehicle: Vehicle): boolean => {
   const userRole = authStore.user?.role || '';
-  const userId = authStore.user?.id || '';
+  console.log('✏️ canEditVehicle check:', {
+    userRole,
+    localVendorId: localVendorId.value,
+    vehicleId: vehicle.id,
+    rentalVendorId: vehicle.rentalVendorId
+  });
 
   // Superadmin bisa edit semua kendaraan
   if (userRole === 'Superadmin') {
+    console.log('   ✅ Superadmin can edit');
     return true;
   }
 
   // Rental Vendor hanya bisa edit kendaraan miliknya sendiri
   if (userRole === 'RentalVendor') {
-    return vehicle.rentalVendorId === userId;
+    if (localVendorId.value === null) {
+      console.log('   ❌ Vendor ID not found');
+      return false;
+    }
+    // Convert rentalVendorId to number for comparison
+    const vehicleVendorId = typeof vehicle.rentalVendorId === 'string'
+      ? parseInt(vehicle.rentalVendorId)
+      : vehicle.rentalVendorId;
+    const canEdit = vehicleVendorId === localVendorId.value;
+    console.log(`   ${canEdit ? '✅' : '❌'} RentalVendor edit check: ${vehicleVendorId} === ${localVendorId.value}`);
+    return canEdit;
   }
 
+  console.log('   ❌ User cannot edit');
   return false;
 };
 
