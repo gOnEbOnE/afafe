@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { RentalBooking, BookingResponse, CreateBookingRequest, UpdateBookingRequest } from '@/interfaces/booking.interface';
+import type {
+  RentalBooking,
+  BookingResponse,
+  CreateBookingRequest,
+  UpdateBookingDetailsRequest,
+  UpdateBookingStatusRequest,
+  UpdateBookingAddOnsRequest,
+  SearchVehicleRequest,
+  AvailableVehicleResponseDTO,
+  RentalAddOn
+} from '@/interfaces/booking.interface';
+import type { Province } from '@/interfaces/location.interface';
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
@@ -9,6 +20,9 @@ const baseBookingUrl = `${import.meta.env.VITE_API_URL}/bookings`;
 export const useBookingStore = defineStore('booking', () => {
   const bookings = ref<RentalBooking[]>([]);
   const currentBooking = ref<RentalBooking | null>(null);
+  const availableVehicles = ref<AvailableVehicleResponseDTO[]>([]);
+  const addOns = ref<RentalAddOn[]>([]);
+  const provinces = ref<Province[]>([]);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const bookingCount = ref(0);
@@ -85,7 +99,7 @@ export const useBookingStore = defineStore('booking', () => {
     error.value = null;
 
     try {
-      const response = await axios.post<BookingResponse>(`${baseBookingUrl}`, bookingData);
+      const response = await axios.post<BookingResponse>(`${baseBookingUrl}/finalize`, bookingData);
 
       const newBooking = Array.isArray(response.data.data)
         ? (response.data.data[0] as RentalBooking)
@@ -105,13 +119,41 @@ export const useBookingStore = defineStore('booking', () => {
     }
   };
 
-  const updateBooking = async (bookingData: UpdateBookingRequest) => {
+  const searchVehicles = async (criteria: SearchVehicleRequest) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await axios.post(`${baseBookingUrl}/search`, criteria);
+
+      if (Array.isArray(response.data.data)) {
+        availableVehicles.value = response.data.data as AvailableVehicleResponseDTO[];
+      } else {
+        availableVehicles.value = [];
+      }
+
+      if (availableVehicles.value.length === 0) {
+        toast.info('Tidak ada kendaraan yang tersedia untuk kriteria tersebut');
+      }
+
+      return availableVehicles.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal mencari kendaraan';
+      toast.error(`Error: ${error.value}`);
+      availableVehicles.value = [];
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const updateBookingDetails = async (bookingData: UpdateBookingDetailsRequest) => {
     loading.value = true;
     error.value = null;
 
     try {
       const response = await axios.put<BookingResponse>(
-        `${baseBookingUrl}/${bookingData.id}`,
+        `${baseBookingUrl}/update-details`,
         bookingData
       );
 
@@ -126,10 +168,75 @@ export const useBookingStore = defineStore('booking', () => {
       if (updatedBooking) {
         currentBooking.value = updatedBooking;
       }
-      toast.success('Booking berhasil diperbarui');
+      toast.success('Detail booking berhasil diperbarui');
       return updatedBooking;
     } catch (err) {
-      error.value = err instanceof Error ? err.message : 'Gagal memperbarui booking';
+      error.value = err instanceof Error ? err.message : 'Gagal memperbarui detail booking';
+      toast.error(`Error: ${error.value}`);
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const updateBookingStatus = async (id: string, status: string) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const payload: UpdateBookingStatusRequest = { id, status: status as any };
+      const response = await axios.put<BookingResponse>(
+        `${baseBookingUrl}/update-status`,
+        payload
+      );
+
+      const updatedBooking = Array.isArray(response.data.data)
+        ? (response.data.data[0] as RentalBooking)
+        : (response.data.data as RentalBooking);
+
+      const index = bookings.value.findIndex(b => b.id === id);
+      if (index !== -1 && updatedBooking) {
+        bookings.value[index] = updatedBooking;
+      }
+      if (updatedBooking) {
+        currentBooking.value = updatedBooking;
+      }
+      toast.success('Status booking berhasil diperbarui');
+      return updatedBooking;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memperbarui status booking';
+      toast.error(`Error: ${error.value}`);
+      return null;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const updateBookingAddOns = async (bookingData: UpdateBookingAddOnsRequest) => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await axios.put<BookingResponse>(
+        `${baseBookingUrl}/update-addons`,
+        bookingData
+      );
+
+      const updatedBooking = Array.isArray(response.data.data)
+        ? (response.data.data[0] as RentalBooking)
+        : (response.data.data as RentalBooking);
+
+      const index = bookings.value.findIndex(b => b.id === bookingData.id);
+      if (index !== -1 && updatedBooking) {
+        bookings.value[index] = updatedBooking;
+      }
+      if (updatedBooking) {
+        currentBooking.value = updatedBooking;
+      }
+      toast.success('Add-ons booking berhasil diperbarui');
+      return updatedBooking;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memperbarui add-ons';
       toast.error(`Error: ${error.value}`);
       return null;
     } finally {
@@ -142,7 +249,7 @@ export const useBookingStore = defineStore('booking', () => {
     error.value = null;
 
     try {
-      const response = await axios.delete(`${baseBookingUrl}/${id}`);
+      const response = await axios.delete(`${baseBookingUrl}/${id}/delete`);
 
       if (response.status === 200) {
         const index = bookings.value.findIndex(b => b.id === id);
@@ -161,6 +268,54 @@ export const useBookingStore = defineStore('booking', () => {
       error.value = err instanceof Error ? err.message : 'Gagal menghapus booking';
       console.error('Delete booking error:', err);
       throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const fetchAddOns = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await axios.get(`${baseBookingUrl}/addons`);
+
+      if (Array.isArray(response.data.data)) {
+        addOns.value = response.data.data as RentalAddOn[];
+      } else {
+        addOns.value = [];
+      }
+
+      return addOns.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memuat add-ons';
+      toast.error(`Error: ${error.value}`);
+      addOns.value = [];
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const fetchProvinces = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await axios.get(`${baseBookingUrl}/provinces`);
+
+      if (Array.isArray(response.data.data)) {
+        provinces.value = response.data.data as Province[];
+      } else {
+        provinces.value = [];
+      }
+
+      return provinces.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memuat provinsi';
+      toast.error(`Error: ${error.value}`);
+      provinces.value = [];
+      return [];
     } finally {
       loading.value = false;
     }
@@ -186,14 +341,22 @@ export const useBookingStore = defineStore('booking', () => {
   return {
     bookings,
     currentBooking,
+    availableVehicles,
+    addOns,
+    provinces,
     loading,
     error,
     bookingCount,
     fetchBookings,
     getBookingById,
+    searchVehicles,
     createBooking,
-    updateBooking,
+    updateBookingDetails,
+    updateBookingStatus,
+    updateBookingAddOns,
     deleteBooking,
     getBookingCount,
+    fetchAddOns,
+    fetchProvinces,
   };
 });

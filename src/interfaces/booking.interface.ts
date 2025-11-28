@@ -25,6 +25,31 @@ export interface RentalBooking {
   updatedAt: string;
 }
 
+export interface AvailableVehicleResponseDTO {
+  vehicleId: string;
+  rentalVendorId: string;
+  rentalVendorName: string;
+  type: string;
+  brand: string;
+  model: string;
+  year: number;
+  location: string;
+  licensePlate: string;
+  capacity: number;
+  transmission: string;
+  fuelType: string;
+  pricePerDay: number;
+}
+
+export interface SearchVehicleRequest {
+  pickUpLocation: string;
+  dropOffLocation: string;
+  pickUpTime: string;
+  dropOffTime: string;
+  capacityNeeded: number;
+  transmissionNeeded: string;
+}
+
 export interface BookingResponse {
   status: number;
   message: string;
@@ -41,9 +66,10 @@ export interface CreateBookingRequest {
   capacityNeeded: number;
   transmissionNeeded: string;
   includeDriver: boolean;
+  addOnIds?: string[];
 }
 
-export interface UpdateBookingRequest {
+export interface UpdateBookingDetailsRequest {
   id: string;
   pickUpLocation: string;
   dropOffLocation: string;
@@ -52,4 +78,14 @@ export interface UpdateBookingRequest {
   capacityNeeded: number;
   transmissionNeeded: string;
   includeDriver: boolean;
+}
+
+export interface UpdateBookingStatusRequest {
+  id: string;
+  status: 'Upcoming' | 'Ongoing' | 'Done' | 'Cancelled';
+}
+
+export interface UpdateBookingAddOnsRequest {
+  id: string;
+  addOnIds: string[];
 }
