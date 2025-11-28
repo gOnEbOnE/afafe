@@ -3,6 +3,7 @@ import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store';
 import { useAuthStore } from '@/stores/auth/auth.store';
+import type { Vehicle } from '@/interfaces/vehicle.interface';
 import { toast } from 'vue-sonner';
 
 const router = useRouter();
@@ -11,18 +12,40 @@ const authStore = useAuthStore();
 
 // RBAC - Check permissions
 const canCreate = computed(() => {
-  const allowedRoles = ['Superadmin', 'Rental Vendor'];
-  return allowedRoles.includes(authStore.user?.role || '');
+  const userRole = authStore.user?.role || '';
+  return userRole === 'Superadmin' || userRole === 'RentalVendor';
 });
 
 const canEdit = computed(() => {
-  const allowedRoles = ['Superadmin', 'Rental Vendor'];
-  return allowedRoles.includes(authStore.user?.role || '');
+  const userRole = authStore.user?.role || '';
+  return userRole === 'Superadmin' || userRole === 'RentalVendor';
 });
 
 const canDelete = computed(() => {
-  const allowedRoles = ['Superadmin', 'Rental Vendor'];
-  return allowedRoles.includes(authStore.user?.role || '');
+  const userRole = authStore.user?.role || '';
+  return userRole === 'Superadmin' || userRole === 'RentalVendor';
+});
+
+// ✅ FIX: Client-side filtering untuk Rental Vendor
+const filteredVehicles = computed(() => {
+  const userRole = authStore.user?.role || '';
+  const userId = authStore.user?.id || '';
+
+  // Superadmin bisa lihat semua kendaraan
+  if (userRole === 'Superadmin') {
+    return vehicleStore.vehicles;
+  }
+
+  // Rental Vendor HANYA lihat kendaraan miliknya sendiri
+  if (userRole === 'RentalVendor') {
+    return vehicleStore.vehicles.filter(vehicle => {
+      // Filter berdasarkan rentalVendorId yang cocok dengan user.id
+      return vehicle.rentalVendorId === userId;
+    });
+  }
+
+  // Customer atau role lain: lihat semua kendaraan yang tersedia
+  return vehicleStore.vehicles;
 });
 
 // Lifecycle
@@ -33,6 +56,15 @@ onMounted(() => {
 // Methods
 const formatCurrency = (value: number): string => {
   return new Intl.NumberFormat('id-ID').format(value);
+};
+
+const getStatusBadge = (status: string) => {
+  const badges: Record<string, { class: string; label: string }> = {
+    Available: { class: 'badge-success', label: 'Tersedia' },
+    Rented: { class: 'badge-warning', label: 'Disewa' },
+    Maintenance: { class: 'badge-danger', label: 'Maintenance' },
+  };
+  return badges[status] || { class: 'badge-secondary', label: status };
 };
 
 const goToCreate = () => {
@@ -47,10 +79,47 @@ const goToUpdate = (id: string) => {
   router.push(`/vehicles/${id}/update`);
 };
 
+// ✅ FIX: Check ownership sebelum delete
+const canDeleteVehicle = (vehicle: Vehicle): boolean => {
+  const userRole = authStore.user?.role || '';
+  const userId = authStore.user?.id || '';
+
+  // Superadmin bisa hapus semua kendaraan
+  if (userRole === 'Superadmin') {
+    return true;
+  }
+
+  // Rental Vendor hanya bisa hapus kendaraan miliknya sendiri
+  if (userRole === 'RentalVendor') {
+    return vehicle.rentalVendorId === userId;
+  }
+
+  return false;
+};
+
+// ✅ FIX: Check ownership sebelum edit
+const canEditVehicle = (vehicle: Vehicle): boolean => {
+  const userRole = authStore.user?.role || '';
+  const userId = authStore.user?.id || '';
+
+  // Superadmin bisa edit semua kendaraan
+  if (userRole === 'Superadmin') {
+    return true;
+  }
+
+  // Rental Vendor hanya bisa edit kendaraan miliknya sendiri
+  if (userRole === 'RentalVendor') {
+    return vehicle.rentalVendorId === userId;
+  }
+
+  return false;
+};
+
 const confirmDelete = async (id: string) => {
   if (confirm('Apakah Anda yakin ingin menghapus kendaraan ini?')) {
     try {
       await vehicleStore.deleteVehicle(id);
+      // Tidak perlu refresh manual karena store sudah update state
     } catch (err) {
       console.error('Delete error:', err);
     }
@@ -61,7 +130,15 @@ const confirmDelete = async (id: string) => {
 <template>
   <div class="vehicle-container">
     <div class="vehicle-header">
-      <h1>Manajemen Kendaraan</h1>
+      <div>
+        <h1>Manajemen Kendaraan</h1>
+        <p class="vehicle-count">
+          Menampilkan {{ filteredVehicles.length }} kendaraan
+          <span v-if="authStore.user?.role === 'RentalVendor'" class="vendor-info">
+            (milik Anda)
+          </span>
+        </p>
+      </div>
       <button
         v-if="canCreate"
         @click="goToCreate"
@@ -87,6 +164,8 @@ const confirmDelete = async (id: string) => {
         <thead>
           <tr>
             <th>No</th>
+            <th>Vendor</th>
+            <th>Type</th>
             <th>Brand</th>
             <th>Model</th>
             <th>Tahun</th>
@@ -96,12 +175,15 @@ const confirmDelete = async (id: string) => {
             <th>Bahan Bakar</th>
             <th>Harga/Hari</th>
             <th>Lokasi</th>
+            <th>Status</th>
             <th>Aksi</th>
           </tr>
         </thead>
         <tbody>
-          <tr v-for="(vehicle, index) in vehicleStore.vehicles" :key="vehicle.id">
+          <tr v-for="(vehicle, index) in filteredVehicles" :key="vehicle.id">
             <td>{{ index + 1 }}</td>
+            <td>{{ vehicle.rentalVendorName }}</td>
+            <td>{{ vehicle.type }}</td>
             <td>{{ vehicle.brand }}</td>
             <td>{{ vehicle.model }}</td>
             <td>{{ vehicle.year }}</td>
@@ -109,8 +191,13 @@ const confirmDelete = async (id: string) => {
             <td>{{ vehicle.capacity }} penumpang</td>
             <td>{{ vehicle.transmission }}</td>
             <td>{{ vehicle.fuelType }}</td>
-            <td>Rp {{ formatCurrency(vehicle.dailyPrice) }}</td>
+            <td>Rp {{ formatCurrency(vehicle.price) }}</td>
             <td>{{ vehicle.location }}</td>
+            <td>
+              <span :class="['badge', getStatusBadge(vehicle.status).class]">
+                {{ getStatusBadge(vehicle.status).label }}
+              </span>
+            </td>
             <td class="action-cell">
               <button
                 @click="goToDetail(vehicle.id)"
@@ -119,14 +206,14 @@ const confirmDelete = async (id: string) => {
                 Lihat
               </button>
               <button
-                v-if="canEdit"
+                v-if="canEdit && canEditVehicle(vehicle)"
                 @click="goToUpdate(vehicle.id)"
                 class="btn-warning"
               >
                 Edit
               </button>
               <button
-                v-if="canDelete"
+                v-if="canDelete && canDeleteVehicle(vehicle)"
                 @click="confirmDelete(vehicle.id)"
                 class="btn-danger"
               >
@@ -137,7 +224,7 @@ const confirmDelete = async (id: string) => {
         </tbody>
       </table>
 
-      <div v-if="vehicleStore.vehicles.length === 0" class="empty-state">
+      <div v-if="filteredVehicles.length === 0" class="empty-state">
         Tidak ada kendaraan ditemukan
       </div>
     </div>
@@ -162,6 +249,18 @@ const confirmDelete = async (id: string) => {
   font-size: 28px;
   font-weight: 600;
   color: #333;
+  margin-bottom: 5px;
+}
+
+.vehicle-count {
+  font-size: 14px;
+  color: #666;
+  margin: 0;
+}
+
+.vendor-info {
+  color: #007bff;
+  font-weight: 500;
 }
 
 .btn-primary {
@@ -275,5 +374,33 @@ const confirmDelete = async (id: string) => {
   padding: 40px;
   color: #999;
   font-size: 16px;
+}
+
+.badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  display: inline-block;
+}
+
+.badge-success {
+  background-color: #d4edda;
+  color: #155724;
+}
+
+.badge-warning {
+  background-color: #fff3cd;
+  color: #856404;
+}
+
+.badge-danger {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.badge-secondary {
+  background-color: #e2e3e5;
+  color: #383d41;
 }
 </style>

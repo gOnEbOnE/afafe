@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { Vehicle, VehicleResponse, CreateVehicleRequest, UpdateVehicleRequest } from '@/interfaces/vehicle.interface';
+import type { Vehicle, VehicleResponse, CreateVehicleRequest, UpdateVehicleRequest, RentalVendor } from '@/interfaces/vehicle.interface';
 import api from '@/utils/api';
 import { toast } from 'vue-sonner';
 
@@ -8,10 +8,12 @@ const baseVehicleUrl = `/vehicles`;
 
 export const useVehicleStore = defineStore('vehicle', () => {
   const vehicles = ref<Vehicle[]>([]);
+  const vendors = ref<RentalVendor[]>([]);
   const currentVehicle = ref<Vehicle | null>(null);
   const loading = ref(false);
   const error = ref<string | null>(null);
   const vehicleCount = ref(0);
+  const vendorCount = ref(0);
 
   const fetchVehicles = async (type?: string, keyword?: string) => {
     loading.value = true;
@@ -171,17 +173,64 @@ export const useVehicleStore = defineStore('vehicle', () => {
     }
   };
 
+  const fetchVendors = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.get(`${baseVehicleUrl}/vendors`);
+
+      if (Array.isArray(response.data.data)) {
+        vendors.value = response.data.data as RentalVendor[];
+      } else if (response.data.data) {
+        vendors.value = [response.data.data as RentalVendor];
+      } else {
+        vendors.value = [];
+      }
+
+      return vendors.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memuat vendor';
+      toast.error(`Error: ${error.value}`);
+      vendors.value = [];
+      return [];
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const getVendorCount = async () => {
+    loading.value = true;
+    error.value = null;
+
+    try {
+      const response = await api.get(`${baseVehicleUrl}/vendor/count`);
+      vendorCount.value = response.data.data;
+      return vendorCount.value;
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Gagal memload jumlah vendor';
+      toast.error(`Error: ${error.value}`);
+      return 0;
+    } finally {
+      loading.value = false;
+    }
+  };
+
   return {
     vehicles,
+    vendors,
     currentVehicle,
     loading,
     error,
     vehicleCount,
+    vendorCount,
     fetchVehicles,
     fetchVehicleById,
     createVehicle,
     updateVehicle,
     deleteVehicle,
     getVehicleCount,
+    fetchVendors,
+    getVendorCount,
   };
 });

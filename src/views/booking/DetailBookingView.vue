@@ -2,14 +2,14 @@
 import { onMounted, computed, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useBookingStore } from '@/stores/booking/booking.store'
-import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
-import type { RentalAddOn } from '@/interfaces/booking.interface'
+import { useAuthStore } from '@/stores/auth/auth.store'
 import VDeleteBookingButton from '@/components/booking/VDeleteBookingButton.vue'
+import { toast } from 'vue-sonner'
 
 const route = useRoute()
 const router = useRouter()
 const bookingStore = useBookingStore()
-const vehicleStore = useVehicleStore()
+const authStore = useAuthStore()
 
 const bookingId = route.params.id as string
 const showAddOnsModal = ref(false)
@@ -18,6 +18,35 @@ const showAddOnsModal = ref(false)
 const currentBooking = computed(() => bookingStore.currentBooking)
 const loading = computed(() => bookingStore.loading)
 const error = computed(() => bookingStore.error)
+
+// RBAC computed properties
+const canUpdateDetails = computed(() => {
+  return currentBooking.value?.status.toLowerCase() === 'upcoming'
+})
+
+const canUpdateAddOns = computed(() => {
+  return currentBooking.value?.status.toLowerCase() === 'upcoming'
+})
+
+const canStartRental = computed(() => {
+  const allowedRoles = ['Superadmin', 'RentalVendor']
+  return (
+    allowedRoles.includes(authStore.user?.role || '') &&
+    currentBooking.value?.status.toLowerCase() === 'upcoming'
+  )
+})
+
+const canCompleteRental = computed(() => {
+  const allowedRoles = ['Superadmin', 'RentalVendor']
+  return (
+    allowedRoles.includes(authStore.user?.role || '') &&
+    currentBooking.value?.status.toLowerCase() === 'ongoing'
+  )
+})
+
+const canCancelBooking = computed(() => {
+  return currentBooking.value?.status.toLowerCase() === 'upcoming'
+})
 
 onMounted(async () => {
   await bookingStore.getBookingById(bookingId)
@@ -84,23 +113,30 @@ const getStatusColor = (status: string) => {
   }
 }
 
-// Check button visibility
-const canUpdateBooking = computed(() => {
-  return currentBooking.value?.status.toLowerCase() === 'upcoming'
-})
+// Handler for starting rental
+const handleStartRental = async () => {
+  if (!currentBooking.value) return
 
-const canUpdateAddOns = computed(() => {
-  return currentBooking.value?.status.toLowerCase() === 'upcoming'
-})
+  try {
+    await bookingStore.updateBookingStatus(currentBooking.value.id, 'Ongoing')
+    toast.success('Rental berhasil dimulai')
+  } catch (err) {
+    toast.error('Gagal memulai rental')
+  }
+}
 
-const canUpdateStatus = computed(() => {
-  const status = currentBooking.value?.status.toLowerCase()
-  return status === 'upcoming' || status === 'ongoing'
-})
+// Handler for completing rental
+const handleCompleteRental = async () => {
+  if (!currentBooking.value) return
 
-const canCancelBooking = computed(() => {
-  return currentBooking.value?.status.toLowerCase() === 'upcoming'
-})
+  try {
+    await bookingStore.updateBookingStatus(currentBooking.value.id, 'Done')
+    toast.success('Rental berhasil diselesaikan')
+  } catch (err) {
+    toast.error('Gagal menyelesaikan rental')
+  }
+}
+
 </script>
 
 <template>
@@ -111,11 +147,11 @@ const canCancelBooking = computed(() => {
         <h1 class="text-4xl font-bold text-gray-900">Booking Details</h1>
         <div class="flex gap-3 w-full md:w-auto flex-wrap">
           <button
-            v-if="canUpdateBooking"
+            v-if="canUpdateDetails"
             @click="handleUpdateBooking"
             class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg transition text-sm md:text-base"
           >
-            Update Booking Details
+            Update Details
           </button>
           <button
             v-if="canUpdateAddOns"
@@ -125,13 +161,19 @@ const canCancelBooking = computed(() => {
             Update Add-Ons
           </button>
           <button
-            v-if="canUpdateStatus"
-            @click="handleUpdateStatus"
+            v-if="canStartRental"
+            @click="handleStartRental"
+            class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition text-sm md:text-base"
+          >
+            Start Rental
+          </button>
+          <button
+            v-if="canCompleteRental"
+            @click="handleCompleteRental"
             class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-lg transition text-sm md:text-base"
           >
-            Update Status
+            Complete Rental
           </button>
-          <!-- ✅ FIXED: Use @bookingCancelled event instead of @click -->
           <VDeleteBookingButton
             v-if="canCancelBooking"
             :bookingId="bookingId"

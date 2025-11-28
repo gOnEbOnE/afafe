@@ -1,16 +1,20 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useLocationStore } from '@/stores/location/location.store'
+import { useAuthStore } from '@/stores/auth/auth.store'
 import { useBookingStore } from '@/stores/booking/booking.store'
-import type { Province } from '@/interfaces/location.interface'
 import type { RentalAddOn, AvailableVehicleResponseDTO } from '@/interfaces/booking.interface'
 import { toast } from 'vue-sonner'
-import axios from 'axios'
 
 const router = useRouter()
-const locationStore = useLocationStore()
+const authStore = useAuthStore()
 const bookingStore = useBookingStore()
+
+// RBAC Check - Only Superadmin and Customer can create booking
+if (authStore.user?.role !== 'Superadmin' && authStore.user?.role !== 'Customer') {
+  toast.error('Anda tidak memiliki akses untuk membuat booking')
+  router.push('/bookings')
+}
 
 // Step state
 const currentStep = ref<'details' | 'addons' | 'success'>('details')
@@ -30,10 +34,10 @@ const formPage1 = ref({
 const selectedVehicle = ref<AvailableVehicleResponseDTO | null>(null)
 const selectedAddOns = ref<string[]>([])
 
-// Data
-const provinces = ref<Province[]>([])
-const availableVehicles = ref<AvailableVehicleResponseDTO[]>([])
-const allAddOns = ref<RentalAddOn[]>([])
+// Data refs (menggunakan store)
+const provinces = computed(() => bookingStore.provinces)
+const availableVehicles = computed(() => bookingStore.availableVehicles)
+const allAddOns = computed(() => bookingStore.addOns)
 
 // UI states
 const loading = ref(false)
