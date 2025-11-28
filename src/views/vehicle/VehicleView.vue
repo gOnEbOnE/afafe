@@ -1,293 +1,279 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
-import { useVehicleStore } from '@/stores/vehicle/vehicle.store';
+import { computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { storeToRefs } from 'pinia';
-import VDeleteVehicleButton from '@/components/vehicle/VDeleteVehicleButton.vue';
+import { useVehicleStore } from '@/stores/vehicle/vehicle.store';
+import { useAuthStore } from '@/stores/auth/auth.store';
+import { toast } from 'vue-sonner';
 
-// ✅ FIXED: Initialize router dengan error handling
-let router: any = null;
-try {
-  router = useRouter();
-} catch (error) {
-  console.error('❌ Failed to initialize router:', error);
-}
-
+const router = useRouter();
 const vehicleStore = useVehicleStore();
-const { vehicles, loading, vehicleCount } = storeToRefs(vehicleStore);
+const authStore = useAuthStore();
 
-const searchKeyword = ref('');
-const selectedType = ref('');
-
-const vehicleTypes = ['SUV', 'MPV', 'Luxury', 'Economy', 'Sport'];
-
-const formatPrice = (price: number) => {
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0,
-  }).format(price);
-};
-
-const getStatusClass = (status: string) => {
-  if (status === 'Available') {
-    return 'bg-green-100 text-green-800';
-  }
-  return 'bg-red-100 text-red-800';
-};
-
-const getStatusBadgeColor = (status: string) => {
-  return status === 'Available'
-    ? 'bg-green-500 hover:bg-green-600'
-    : 'bg-gray-500 hover:bg-gray-600';
-};
-
-const handleSearch = async () => {
-  await vehicleStore.fetchVehicles(selectedType.value, searchKeyword.value);
-};
-
-const handleFilter = async (type: string) => {
-  selectedType.value = type;
-  searchKeyword.value = '';
-  await vehicleStore.fetchVehicles(type, '');
-};
-
-const handleReset = async () => {
-  selectedType.value = '';
-  searchKeyword.value = '';
-  await vehicleStore.fetchVehicles();
-};
-
-const handleVehicleDeleted = async (vehicleId: string) => {
-  console.log('🗑️ VehicleView: Vehicle deleted:', vehicleId)
-  // Refresh list setelah kendaraan dihapus
-  await vehicleStore.fetchVehicles();
-};
-
-// ✅ FIXED: Add null check dan proper error handling
-const goToDetail = (id: string) => {
-  console.log('🔍 goToDetail called with ID:', id);
-  
-  if (!router) {
-    console.error('❌ Router is not initialized');
-    return;
-  }
-  
-  try {
-    router.push(`/vehicles/${id}`);
-  } catch (error) {
-    console.error('❌ Error navigating to detail:', error);
-  }
-};
-
-// ✅ FIXED: Add null check dan proper error handling
-const goToCreate = () => {
-  console.log('🔍 goToCreate called');
-  
-  if (!router) {
-    console.error('❌ Router is not initialized');
-    return;
-  }
-  
-  try {
-    router.push('/vehicles/create');
-  } catch (error) {
-    console.error('❌ Error navigating to create:', error);
-  }
-};
-
-const getVehicleCount = async () => {
-  await vehicleStore.getVehicleCount();
-};
-
-onMounted(async () => {
-  console.log('🔄 VehicleView mounted');
-  await vehicleStore.fetchVehicles();
+// RBAC - Check permissions
+const canCreate = computed(() => {
+  const allowedRoles = ['Superadmin', 'Rental Vendor'];
+  return allowedRoles.includes(authStore.user?.role || '');
 });
+
+const canEdit = computed(() => {
+  const allowedRoles = ['Superadmin', 'Rental Vendor'];
+  return allowedRoles.includes(authStore.user?.role || '');
+});
+
+const canDelete = computed(() => {
+  const allowedRoles = ['Superadmin', 'Rental Vendor'];
+  return allowedRoles.includes(authStore.user?.role || '');
+});
+
+// Lifecycle
+onMounted(() => {
+  vehicleStore.fetchVehicles();
+});
+
+// Methods
+const formatCurrency = (value: number): string => {
+  return new Intl.NumberFormat('id-ID').format(value);
+};
+
+const goToCreate = () => {
+  router.push('/vehicles/create');
+};
+
+const goToDetail = (id: string) => {
+  router.push(`/vehicles/${id}`);
+};
+
+const goToUpdate = (id: string) => {
+  router.push(`/vehicles/${id}/update`);
+};
+
+const confirmDelete = async (id: string) => {
+  if (confirm('Apakah Anda yakin ingin menghapus kendaraan ini?')) {
+    try {
+      await vehicleStore.deleteVehicle(id);
+    } catch (err) {
+      console.error('Delete error:', err);
+    }
+  }
+};
 </script>
 
 <template>
-  <main class="min-h-screen bg-gray-50">
-    <!-- Header -->
-    <div class="bg-white shadow-sm sticky top-0 z-10">
-      <div class="max-w-7xl mx-auto px-4 py-6">
-        <div class="flex justify-between items-center flex-wrap gap-4">
-          <div>
-            <h1 class="text-3xl font-bold text-gray-900">Vehicle Rental App</h1>
-            <p class="text-gray-600 text-sm mt-1">Kelola kendaraan rental Anda</p>
-          </div>
-          <div class="flex gap-2">
-            <button
-              @click="router ? router.push('/') : console.error('Router not initialized')"
-              class="px-4 py-2 bg-gray-200 text-gray-800 rounded hover:bg-gray-300 transition"
-            >
-              ← Kembali
-            </button>
-          </div>
-        </div>
-      </div>
+  <div class="vehicle-container">
+    <div class="vehicle-header">
+      <h1>Manajemen Kendaraan</h1>
+      <button
+        v-if="canCreate"
+        @click="goToCreate"
+        class="btn-primary"
+      >
+        + Tambah Kendaraan
+      </button>
     </div>
 
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 py-8">
-      <!-- Action Buttons and Stats -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="flex justify-between items-center flex-wrap gap-4 mb-4">
-          <div class="flex gap-2">
-            <button
-              @click="goToCreate"
-              class="px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition"
-            >
-              ➕ Add A New Vehicle
-            </button>
-            <button
-              @click="getVehicleCount"
-              class="px-6 py-2 bg-green-600 text-white rounded font-semibold hover:bg-green-700 transition"
-            >
-              📊 Statistics
-            </button>
-          </div>
-        </div>
+    <!-- Loading State -->
+    <div v-if="vehicleStore.loading" class="loading">
+      Memuat data kendaraan...
+    </div>
 
-        <!-- Vehicle Count Display -->
-        <div v-if="vehicleCount > 0" class="bg-green-50 border border-green-200 rounded-lg p-4">
-          <div class="flex items-center gap-2">
-            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <span class="text-green-800 font-medium">
-              Total Kendaraan di Database: {{ vehicleCount }}
-            </span>
-          </div>
-        </div>
-      </div>
+    <!-- Error State -->
+    <div v-else-if="vehicleStore.error" class="error">
+      {{ vehicleStore.error }}
+    </div>
 
-      <!-- Search and Filter -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-          <!-- Search Input -->
-          <div class="col-span-1 md:col-span-2">
-            <input
-              v-model="searchKeyword"
-              type="text"
-              placeholder="Search vehicles..."
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
+    <!-- Table -->
+    <div v-else class="table-wrapper">
+      <table class="vehicle-table">
+        <thead>
+          <tr>
+            <th>No</th>
+            <th>Brand</th>
+            <th>Model</th>
+            <th>Tahun</th>
+            <th>Plat Nomor</th>
+            <th>Kapasitas</th>
+            <th>Transmisi</th>
+            <th>Bahan Bakar</th>
+            <th>Harga/Hari</th>
+            <th>Lokasi</th>
+            <th>Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="(vehicle, index) in vehicleStore.vehicles" :key="vehicle.id">
+            <td>{{ index + 1 }}</td>
+            <td>{{ vehicle.brand }}</td>
+            <td>{{ vehicle.model }}</td>
+            <td>{{ vehicle.year }}</td>
+            <td>{{ vehicle.licensePlate }}</td>
+            <td>{{ vehicle.capacity }} penumpang</td>
+            <td>{{ vehicle.transmission }}</td>
+            <td>{{ vehicle.fuelType }}</td>
+            <td>Rp {{ formatCurrency(vehicle.dailyPrice) }}</td>
+            <td>{{ vehicle.location }}</td>
+            <td class="action-cell">
+              <button
+                @click="goToDetail(vehicle.id)"
+                class="btn-info"
+              >
+                Lihat
+              </button>
+              <button
+                v-if="canEdit"
+                @click="goToUpdate(vehicle.id)"
+                class="btn-warning"
+              >
+                Edit
+              </button>
+              <button
+                v-if="canDelete"
+                @click="confirmDelete(vehicle.id)"
+                class="btn-danger"
+              >
+                Hapus
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
-          <!-- Type Filter -->
-          <div>
-            <select
-              v-model="selectedType"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              <option value="">All Types</option>
-              <option v-for="type in vehicleTypes" :key="type" :value="type">
-                {{ type }}
-              </option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Search Buttons -->
-        <div class="flex gap-2">
-          <button
-            @click="handleSearch"
-            class="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition"
-          >
-            🔍 Search
-          </button>
-          <button
-            @click="handleReset"
-            class="px-6 py-2 bg-gray-400 text-white rounded hover:bg-gray-500 transition"
-          >
-            🔄 Reset
-          </button>
-        </div>
-      </div>
-
-      <!-- Loading State -->
-      <div v-if="loading" class="text-center py-12">
-        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto"></div>
-        <p class="text-gray-500 mt-4">Memuat kendaraan...</p>
-      </div>
-
-      <!-- Empty State -->
-      <div v-else-if="vehicles.length === 0" class="text-center py-12 bg-white rounded-lg shadow">
-        <svg class="w-24 h-24 mx-auto text-gray-300 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-        </svg>
-        <p class="text-gray-500 text-lg">Tidak ada kendaraan ditemukan</p>
-        <p class="text-gray-400 text-sm mt-2">Coba ubah filter atau tambahkan kendaraan baru</p>
-      </div>
-
-      <!-- Vehicles Table -->
-      <div v-else class="bg-white rounded-lg shadow overflow-hidden">
-        <div class="overflow-x-auto">
-          <table class="w-full">
-            <thead class="bg-gray-100 border-b">
-              <tr>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">No</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">ID</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Type</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Brand</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Model</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Capacity</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Status</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Price per Day</th>
-                <th class="px-6 py-3 text-left text-sm font-semibold text-gray-900">Action</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y">
-              <tr v-for="(vehicle, index) in vehicles" :key="vehicle.id" class="hover:bg-gray-50">
-                <td class="px-6 py-4 text-sm text-gray-900">{{ index + 1 }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900 font-mono">{{ vehicle.id }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ vehicle.type }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ vehicle.brand }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ vehicle.model }}</td>
-                <td class="px-6 py-4 text-sm text-gray-900">{{ vehicle.capacity }} seats</td>
-                <td class="px-6 py-4 text-sm">
-                  <span
-                    :class="['px-3 py-1 rounded-full text-xs font-semibold', getStatusClass(vehicle.status)]"
-                  >
-                    {{ vehicle.status }}
-                  </span>
-                </td>
-                <td class="px-6 py-4 text-sm text-gray-900 font-semibold">
-                  {{ formatPrice(vehicle.price) }}
-                </td>
-                <td class="px-6 py-4 text-sm">
-                  <div class="flex gap-2">
-                    <button
-                      @click="goToDetail(vehicle.id)"
-                      :class="['px-4 py-1 text-white rounded font-semibold hover:opacity-90 transition', getStatusBadgeColor(vehicle.status)]"
-                    >
-                      Detail
-                    </button>
-                    <!-- ✅ Gunakan VDeleteVehicleButton -->
-                    <VDeleteVehicleButton
-                      :vehicleId="vehicle.id"
-                      :vehicleName="`${vehicle.brand} ${vehicle.model}`"
-                      @deleted="handleVehicleDeleted"
-                    />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Table Footer -->
-        <div class="bg-gray-50 px-6 py-4 border-t">
-          <p class="text-sm text-gray-600">
-            Menampilkan {{ vehicles.length }} dari total {{ vehicleCount }} kendaraan
-          </p>
-        </div>
+      <div v-if="vehicleStore.vehicles.length === 0" class="empty-state">
+        Tidak ada kendaraan ditemukan
       </div>
     </div>
-  </main>
+  </div>
 </template>
 
 <style scoped>
-/* Add custom styles if needed */
+.vehicle-container {
+  padding: 20px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.vehicle-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.vehicle-header h1 {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+}
+
+.btn-primary {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.btn-primary:hover {
+  background-color: #0056b3;
+}
+
+.loading, .error {
+  text-align: center;
+  padding: 20px;
+  font-size: 16px;
+  border-radius: 5px;
+}
+
+.loading {
+  background-color: #e7f3ff;
+  color: #004085;
+}
+
+.error {
+  background-color: #f8d7da;
+  color: #721c24;
+}
+
+.table-wrapper {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.vehicle-table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: white;
+}
+
+.vehicle-table thead {
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #dee2e6;
+}
+
+.vehicle-table th {
+  padding: 15px;
+  text-align: left;
+  font-weight: 600;
+  color: #495057;
+}
+
+.vehicle-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+.vehicle-table tbody tr:hover {
+  background-color: #f8f9fa;
+}
+
+.action-cell {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-info, .btn-warning, .btn-danger {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-info {
+  background-color: #17a2b8;
+  color: white;
+}
+
+.btn-info:hover {
+  background-color: #138496;
+}
+
+.btn-warning {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.btn-warning:hover {
+  background-color: #e0a800;
+}
+
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c82333;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 16px;
+}
 </style>

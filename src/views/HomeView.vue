@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { onMounted } from 'vue';
 import { useStatisticsStore } from '@/stores/statistics/statistics.store';
+import { useAuthStore } from '@/stores/auth/auth.store';
 import { RouterLink } from 'vue-router';
 
 const statisticsStore = useStatisticsStore();
+const authStore = useAuthStore();
 
 onMounted(() => {
   statisticsStore.fetchStatistics();
@@ -21,6 +23,34 @@ onMounted(() => {
         <p class="text-gray-600">
           Find and book your ideal vehicle easily. Quick, reliable, and ready for your next adventure!
         </p>
+      </div>
+
+      <!-- Authentication Alert -->
+      <div v-if="!authStore.token" class="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
+        <p class="text-blue-900 text-center mb-4">Silakan login untuk melakukan pemesanan.</p>
+        <div class="flex justify-center">
+          <button
+            @click="authStore.loginRedirect()"
+            class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+          >
+            Login via SSO
+          </button>
+        </div>
+      </div>
+
+      <!-- Welcome Message (if authenticated) -->
+      <div v-else class="bg-green-50 border border-green-200 rounded-lg p-6 mb-8">
+        <p class="text-green-900 text-center mb-4">
+          Halo, <span class="font-semibold">{{ authStore.user?.name }}</span>! 👋
+        </p>
+        <div class="flex justify-center">
+          <button
+            @click="authStore.logout()"
+            class="bg-red-600 hover:bg-red-700 text-white font-semibold py-2 px-6 rounded-lg transition"
+          >
+            Logout
+          </button>
+        </div>
       </div>
 
       <!-- Platform Statistics Section -->
@@ -74,9 +104,18 @@ onMounted(() => {
               See Vehicles
             </button>
           </RouterLink>
-          <RouterLink to="/bookings">
+
+          <!-- Conditional Button: Show "Book Rentals" only if authenticated -->
+          <RouterLink v-if="authStore.token" to="/bookings">
             <button class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition">
               Book Rentals
+            </button>
+          </RouterLink>
+
+          <!-- Alternative: Show "Create Booking" if authenticated -->
+          <RouterLink v-if="authStore.token" to="/booking">
+            <button class="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-6 rounded-lg transition">
+              Buat Booking Baru
             </button>
           </RouterLink>
         </div>

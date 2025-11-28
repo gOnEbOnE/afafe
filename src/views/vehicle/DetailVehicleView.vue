@@ -15,7 +15,7 @@ const loading = computed(() => vehicleStore.loading)
 const error = computed(() => vehicleStore.error)
 
 onMounted(async () => {
-  await vehicleStore.getVehicleById(vehicleId)
+  await vehicleStore.fetchVehicleById(vehicleId)
 })
 
 const handleUpdate = () => {
