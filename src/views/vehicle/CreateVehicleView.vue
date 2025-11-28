@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue'
+import { onMounted, ref, computed, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { useVehicleStore } from '@/stores/vehicle/vehicle.store'
 import type { RentalVendor } from '@/interfaces/vendor.interface'
@@ -14,7 +14,7 @@ const vendors = ref<RentalVendor[]>([])
 const loading = ref(false)
 const isSubmitting = ref(false)
 
-const form = ref({
+const form = reactive({
   rentalVendorId: null as number | null,
   type: '',
   brand: '',
@@ -56,65 +56,65 @@ onMounted(async () => {
 })
 
 const handleVendorChange = () => {
-  if (form.value.rentalVendorId) {
+  if (form.rentalVendorId) {
     selectedVendor.value =
-      vendors.value.find((v) => v.id === form.value.rentalVendorId) || null
-    form.value.location = '' // Reset location saat vendor berubah
+      vendors.value.find((v) => v.id === form.rentalVendorId) || null
+    form.location = '' // Reset location saat vendor berubah
   }
 }
 
 const validateForm = (): boolean => {
-  if (!form.value.rentalVendorId) {
+  if (!form.rentalVendorId) {
     toast.error('Pilih vendor terlebih dahulu')
     return false
   }
 
-  if (!form.value.type) {
+  if (!form.type) {
     toast.error('Pilih tipe kendaraan')
     return false
   }
 
-  if (!form.value.brand.trim()) {
+  if (!form.brand.trim()) {
     toast.error('Masukkan merek kendaraan')
     return false
   }
 
-  if (!form.value.model.trim()) {
+  if (!form.model.trim()) {
     toast.error('Masukkan model kendaraan')
     return false
   }
 
-  if (form.value.year > currentYear) {
+  if (form.year > currentYear) {
     toast.error('Tahun kendaraan tidak boleh melebihi tahun saat ini')
     return false
   }
 
-  if (!form.value.location) {
+  if (!form.location) {
     toast.error('Pilih lokasi')
     return false
   }
 
-  if (!form.value.licensePlate.trim()) {
+  if (!form.licensePlate.trim()) {
     toast.error('Masukkan nomor plat')
     return false
   }
 
-  if (form.value.capacity <= 0) {
+  if (form.capacity <= 0) {
     toast.error('Kapasitas harus lebih dari 0')
     return false
   }
 
-  if (!form.value.transmission) {
+  if (!form.transmission) {
     toast.error('Pilih jenis transmisi')
     return false
   }
 
-  if (!form.value.fuelType) {
+  if (!form.fuelType) {
     toast.error('Pilih tipe bahan bakar')
     return false
   }
 
-  if (form.value.price <= 0) {
+  if (form.price <= 0) {
     toast.error('Harga harus lebih dari 0')
     return false
   }
@@ -136,17 +136,17 @@ const handleSubmit = async () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        rentalVendorId: form.value.rentalVendorId,
-        type: form.value.type,
-        brand: form.value.brand,
-        model: form.value.model,
-        year: form.value.year,
-        location: form.value.location,
-        licensePlate: form.value.licensePlate,
-        capacity: form.value.capacity,
-        transmission: form.value.transmission,
-        fuelType: form.value.fuelType,
-        price: form.value.price,
+        rentalVendorId: form.rentalVendorId,
+        type: form.type,
+        brand: form.brand,
+        model: form.model,
+        year: form.year,
+        location: form.location,
+        licensePlate: form.licensePlate,
+        capacity: form.capacity,
+        transmission: form.transmission,
+        fuelType: form.fuelType,
+        price: form.price,
       }),
     })
 
@@ -409,5 +409,90 @@ input {
 
 button {
   transition: all 0.3s ease;
+}
+
+.form-container {
+  max-width: 800px;
+  margin: 30px auto;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.form-container h1 {
+  font-size: 24px;
+  margin-bottom: 30px;
+  color: #333;
+}
+
+.vehicle-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #333;
+}
+
+.form-group input,
+.form-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.btn-submit, .btn-cancel {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-submit {
+  background-color: #28a745;
+  color: white;
+}
+
+.btn-submit:hover {
+  background-color: #218838;
+}
+
+.btn-cancel {
+  background-color: #6c757d;
+  color: white;
+}
+
+.btn-cancel:hover {
+  background-color: #5a6268;
 }
 </style>

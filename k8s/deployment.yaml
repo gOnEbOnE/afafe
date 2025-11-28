@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vehicle-rental-2306245592-fe
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vehicle-rental-2306245592-fe
+  template:
+    metadata:
+      labels:
+        app: vehicle-rental-2306245592-fe
+    spec:
+      containers:
+        - name: nginx-container
+          image: christophermatthew31/vehiclerental-fe-2306245592:REPLACE_ME_TAG
+          ports:
+            - containerPort: 80
+          env:
+            - name: VITE_API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: vehicle-rental-2306245592-fe-config
+                  key: VITE_API_URL
+            - name: NODE_ENV
+              valueFrom:
+                configMapKeyRef:
+                  name: vehicle-rental-2306245592-fe-config
+                  key: NODE_ENV

@@ -1,10 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 import type { Vehicle, VehicleResponse, CreateVehicleRequest, UpdateVehicleRequest } from '@/interfaces/vehicle.interface';
-import axios from 'axios';
+import api from '@/utils/api';
 import { toast } from 'vue-sonner';
 
-const baseVehicleUrl = 'http://localhost:8080/api/vehicles';
+const baseVehicleUrl = `/vehicles`;
 
 export const useVehicleStore = defineStore('vehicle', () => {
   const vehicles = ref<Vehicle[]>([]);
@@ -18,24 +18,12 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
-      let url = baseVehicleUrl;
       const params = new URLSearchParams();
+      if (type && type.trim()) params.append('type', type);
+      if (keyword && keyword.trim()) params.append('keyword', keyword);
 
-      if (type && type.trim()) {
-        params.append('type', type);
-      }
+      const response = await api.get<VehicleResponse>(baseVehicleUrl, { params });
 
-      if (keyword && keyword.trim()) {
-        params.append('keyword', keyword);
-      }
-
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      const response = await axios.get<VehicleResponse>(url);
-
-      // Pastikan data adalah array
       if (Array.isArray(response.data.data)) {
         vehicles.value = response.data.data;
       } else if (response.data.data) {
@@ -59,12 +47,12 @@ export const useVehicleStore = defineStore('vehicle', () => {
     }
   };
 
-  const getVehicleById = async (id: string) => {
+  const fetchVehicleById = async (id: string) => {
     loading.value = true;
     error.value = null;
 
     try {
-      const response = await axios.get<VehicleResponse>(`${baseVehicleUrl}/${id}`);
+      const response = await api.get<VehicleResponse>(`${baseVehicleUrl}/${id}`);
 
       if (Array.isArray(response.data.data)) {
         currentVehicle.value = response.data.data[0] || null;
@@ -87,11 +75,11 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
-      const response = await axios.post<VehicleResponse>(`${baseVehicleUrl}`, vehicleData);
+      const response = await api.post<VehicleResponse>(`${baseVehicleUrl}/create`, vehicleData);
 
       const newVehicle = Array.isArray(response.data.data)
         ? response.data.data[0]
-        : response.data.data as Vehicle;
+        : (response.data.data as Vehicle);
 
       if (newVehicle) {
         vehicles.value.push(newVehicle);
@@ -107,14 +95,13 @@ export const useVehicleStore = defineStore('vehicle', () => {
     }
   };
 
-  const updateVehicle = async (vehicleData: UpdateVehicleRequest) => {
+  const updateVehicle = async (id: string, vehicleData: UpdateVehicleRequest) => {
     loading.value = true;
     error.value = null;
 
     try {
-      // ✅ Ubah dari /update ke /{id}/update
-      const response = await axios.put<VehicleResponse>(
-        `${baseVehicleUrl}/${vehicleData.id}/update`,
+      const response = await api.put<VehicleResponse>(
+        `${baseVehicleUrl}/${id}/update`,
         vehicleData
       );
 
@@ -122,7 +109,7 @@ export const useVehicleStore = defineStore('vehicle', () => {
         ? response.data.data[0]
         : (response.data.data as Vehicle);
 
-      const index = vehicles.value.findIndex(v => v.id === vehicleData.id);
+      const index = vehicles.value.findIndex(v => v.id === id);
       if (index !== -1 && updatedVehicle) {
         vehicles.value[index] = updatedVehicle;
       }
@@ -145,26 +132,22 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
-      const response = await axios.delete<BaseResponseDTO<void>>(
-        `${baseVehicleUrl}/${id}`
-      );
+      await api.delete(`${baseVehicleUrl}/${id}`);
 
-      if (response.status === 200) {
-        // Remove dari local state
-        const index = vehicles.value.findIndex(v => v.id === id);
-        if (index > -1) {
-          vehicles.value.splice(index, 1);
-        }
-
-        if (currentVehicle.value?.id === id) {
-          currentVehicle.value = null;
-        }
-
-        return true;
+      const index = vehicles.value.findIndex(v => v.id === id);
+      if (index > -1) {
+        vehicles.value.splice(index, 1);
       }
+
+      if (currentVehicle.value?.id === id) {
+        currentVehicle.value = null;
+      }
+
+      toast.success('Kendaraan berhasil dihapus');
+      return true;
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Gagal menghapus kendaraan';
-      console.error('Delete vehicle error:', err);
+      toast.error(`Error: ${error.value}`);
       throw err;
     } finally {
       loading.value = false;
@@ -176,7 +159,7 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error.value = null;
 
     try {
-      const response = await axios.get(`${baseVehicleUrl}/count`);
+      const response = await api.get(`${baseVehicleUrl}/count`);
       vehicleCount.value = response.data.data;
       return vehicleCount.value;
     } catch (err) {
@@ -195,7 +178,7 @@ export const useVehicleStore = defineStore('vehicle', () => {
     error,
     vehicleCount,
     fetchVehicles,
-    getVehicleById,
+    fetchVehicleById,
     createVehicle,
     updateVehicle,
     deleteVehicle,

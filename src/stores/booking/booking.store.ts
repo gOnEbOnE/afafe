@@ -4,7 +4,7 @@ import type { RentalBooking, BookingResponse, CreateBookingRequest, UpdateBookin
 import axios from 'axios';
 import { toast } from 'vue-sonner';
 
-const baseBookingUrl = 'http://localhost:8080/api/bookings';
+const baseBookingUrl = `${import.meta.env.VITE_API_URL}/bookings`;
 
 export const useBookingStore = defineStore('booking', () => {
   const bookings = ref<RentalBooking[]>([]);

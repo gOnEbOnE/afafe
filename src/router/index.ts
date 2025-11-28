@@ -1,5 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
+import LoginSuccess from '../views/LoginSuccess.vue'
+import { useAuthStore } from '@/stores/auth/auth.store'
 
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -8,6 +10,16 @@ const router = createRouter({
       path: '/',
       name: 'home',
       component: HomeView,
+    },
+    {
+      path: '/login-success',
+      name: 'login-success',
+      component: LoginSuccess
+    },
+    {
+      path: '/login-success/:pathMatch(.*)*',
+      name: 'login-success-wildcard',
+      component: LoginSuccess
     },
     {
       path: '/vehicles',
@@ -77,5 +89,36 @@ const router = createRouter({
     },
   ],
 })
+
+// Navigation Guard: Proteksi route berdasarkan autentikasi
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+
+  // Daftar halaman yang BOLEH diakses TANPA login (Public)
+  // '/login-success' WAJIB ada di sini agar proses login tidak error/looping
+  const publicPages = ['/', '/about'];
+  const authNotRequiredPaths = ['/login-success', '/vehicles', '/bookings'];
+
+  // Cek apakah path dimulai dengan salah satu dari authNotRequiredPaths
+  const isPublicPage = publicPages.includes(to.path) || 
+                       authNotRequiredPaths.some(path => to.path.startsWith(path));
+  
+  // Cek apakah halaman yang dituju memerlukan autentikasi
+  const authRequired = !isPublicPage && to.meta.requiresAuth !== false;
+
+  // Jika butuh login TAPI user belum punya token
+  if (authRequired && !authStore.token) {
+    // Redirect paksa ke halaman utama (Home)
+    // Di Home nanti user bisa klik tombol "Login" manual
+    return next('/');
+
+    // OPSI ALTERNATIF: Jika ingin langsung lempar ke SSO Login page:
+    // authStore.loginRedirect();
+    // return;
+  }
+
+  // Jika user sudah login atau halaman public, izinkan akses
+  next();
+});
 
 export default router
